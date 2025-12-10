@@ -7,7 +7,7 @@ A high-performance userscript for [SteamDB.info](https://steamdb.info/) that fet
 1.  Install a userscript manager like **Tampermonkey** (Chrome/Edge/Firefox) or **Violentmonkey**.
 2.  Click the button below to install the script:
 
-[**👉 Install Script**](<Primary/prototype2(Go).js?raw=true>)
+[**👉 Install Script**](<Primary/prototype2(Go).user.js?raw=true>)
 
 _(Note: If the link above doesn't work, ensure you are viewing the "Raw" file in the repository)._
 
