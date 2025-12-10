@@ -325,9 +325,24 @@
       name: "Goldberg / JSON",
       ext: "json",
       zipName: "goldberg_icons.zip",
-      render: (data) => JSON.stringify(data, null, 2),
+      render: (data) => {
+        // Goldberg achievements.json format
+        const achievements = data.map((ach) => ({
+          hidden: ach.hidden ? 1 : 0,
+          displayName: {
+            english: ach.displayName,
+          },
+          description: {
+            english: ach.description,
+          },
+          icon_gray: ach.iconGrayBase ? `img/${ach.iconGrayBase}` : "",
+          icon: ach.iconBase ? `img/${ach.iconBase}` : "",
+          name: ach.apiName,
+        }));
+        return JSON.stringify(achievements, null, 2);
+      },
       getFileName: (ach, type) =>
-        type === "main" ? ach.iconBase : ach.iconGrayBase,
+        type === "main" ? `img/${ach.iconBase}` : `img/${ach.iconGrayBase}`,
     },
   };
 
@@ -343,6 +358,21 @@
           out += `${dlc.appId} = "${escapedName}"\n`;
         });
         return out.trim();
+      },
+    },
+    goldberg: {
+      name: "Goldberg (configs.app.ini)",
+      ext: "ini",
+      render: (data) => {
+        let out = "[app::dlcs]\n";
+        out += "# should the emu report all DLCs as unlocked, default=1\n";
+        out += "unlock_all=0\n";
+        if (data.length > 0) {
+          data.forEach((dlc) => {
+            out += `${dlc.appId}=${dlc.name}\n`;
+          });
+        }
+        return out;
       },
     },
   };
@@ -410,6 +440,14 @@ overlay = false
         }
 
         return ini.trim();
+      },
+    },
+    goldberg: {
+      name: "Goldberg Full Package (ZIP)",
+      ext: "zip",
+      render: () => {
+        // This will be handled specially in the save function
+        return "GOLDBERG_ZIP_PACKAGE";
       },
     },
   };
@@ -521,6 +559,94 @@ overlay = false
     });
   }
 
+  async function downloadGoldbergPackage() {
+    const achs = Extractor.data.achievements;
+    const dlcs = Extractor.data.dlcs;
+
+    const updateStatus = (msg) => {
+      $("#sk-ini-status").text(msg);
+    };
+
+    updateStatus("Creating package...");
+
+    const zip = {};
+
+    // 1. Create steam_appid.txt
+    zip["steam_settings/steam_appid.txt"] = new TextEncoder().encode(
+      Extractor.appId
+    );
+
+    // 2. Create achievements.json
+    if (achs.length > 0) {
+      const achievementsJson = Generators.json.render(achs);
+      zip["steam_settings/achievements.json"] = new TextEncoder().encode(
+        achievementsJson
+      );
+    }
+
+    // 3. Create configs.app.ini
+    const configsIni = DLCGenerators.goldberg.render(dlcs);
+    zip["steam_settings/configs.app.ini"] = new TextEncoder().encode(
+      configsIni
+    );
+
+    // 4. Download achievement icons if any
+    if (achs.length > 0) {
+      updateStatus("Downloading achievement icons...");
+
+      const BATCH_SIZE = 50;
+      const tasks = [];
+      let completed = 0;
+
+      achs.forEach((ach) => {
+        if (ach.iconUrl && ach.iconBase) {
+          tasks.push({
+            url: ach.iconUrl,
+            name: `steam_settings/img/${ach.iconBase}`,
+          });
+        }
+        if (ach.iconGrayUrl && ach.iconGrayBase) {
+          tasks.push({
+            url: ach.iconGrayUrl,
+            name: `steam_settings/img/${ach.iconGrayBase}`,
+          });
+        }
+      });
+
+      for (let i = 0; i < tasks.length; i += BATCH_SIZE) {
+        const batch = tasks.slice(i, i + BATCH_SIZE);
+
+        await Promise.all(
+          batch.map(async (task) => {
+            const data = await fastFetch(task.url);
+            if (data && task.name) {
+              zip[task.name] = data;
+            }
+            completed++;
+          })
+        );
+
+        updateStatus(`Downloading icons ${completed}/${tasks.length}...`);
+      }
+    }
+
+    updateStatus("Creating ZIP...");
+
+    // Create the ZIP
+    fflate.zip(zip, { level: 0, mem: 8 }, (err, data) => {
+      if (err) {
+        alert("Zip error: " + err);
+        updateStatus("Error!");
+      } else {
+        saveAs(
+          new Blob([data], { type: "application/zip" }),
+          "steam_settings.zip"
+        );
+        updateStatus("Package ready!");
+      }
+    });
+  }
+
   // =================================================================
   // 5. UI MANAGER
   // =================================================================
@@ -547,7 +673,7 @@ overlay = false
                                     <select id="sk-ach-preset" class="sk-select">
                                         <option value="tenoke">Tenoke .ini</option>
                                         <option value="codex">Codex .ini</option>
-                                        <option value="json">JSON / Goldberg</option>
+                                        <option value="json">Goldberg .json</option>
                                     </select>
                                     <button id="sk-btn-copy" class="sk-btn sk-btn-secondary">Copy</button>
                                     <button id="sk-btn-save" class="sk-btn sk-btn-primary">Save .ini</button>
@@ -562,6 +688,7 @@ overlay = false
                                 <div class="sk-controls">
                                     <select id="sk-dlc-preset" class="sk-select">
                                         <option value="tenoke">Tenoke .ini</option>
+                                        <option value="goldberg">Goldberg configs.app.ini</option>
                                     </select>
                                     <button id="sk-btn-dlc-copy" class="sk-btn sk-btn-secondary">Copy</button>
                                     <button id="sk-btn-dlc-save" class="sk-btn sk-btn-primary">Save .ini</button>
@@ -573,9 +700,10 @@ overlay = false
                                 <div class="sk-controls">
                                     <select id="sk-ini-preset" class="sk-select">
                                         <option value="tenoke">Tenoke Full Config</option>
+                                        <option value="goldberg">Goldberg Full Package (ZIP)</option>
                                     </select>
                                     <button id="sk-btn-ini-copy" class="sk-btn sk-btn-secondary">Copy</button>
-                                    <button id="sk-btn-ini-save" class="sk-btn sk-btn-primary">Save .ini</button>
+                                    <button id="sk-btn-ini-save" class="sk-btn sk-btn-primary">Download</button>
                                 </div>
                                 <textarea id="sk-ini-output" class="sk-textarea" readonly>Prefetching data...</textarea>
                                 <div id="sk-ini-status" class="sk-info-bar">Ready</div>
@@ -650,7 +778,15 @@ overlay = false
         const content = $("#sk-dlc-output").val();
         const preset = DLCGenerators[presetKey];
         const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
-        saveAs(blob, `tenoke_dlc.${preset.ext}`);
+
+        let filename = `dlc.${preset.ext}`;
+        if (presetKey === "tenoke") {
+          filename = "tenoke_dlc.ini";
+        } else if (presetKey === "goldberg") {
+          filename = "configs.app.ini";
+        }
+
+        saveAs(blob, filename);
       });
 
       $("#sk-btn-dlc-copy").on("click", () => {
@@ -662,12 +798,21 @@ overlay = false
 
       $("#sk-ini-preset").on("change", () => this.refreshINIPreview());
 
-      $("#sk-btn-ini-save").on("click", () => {
+      $("#sk-btn-ini-save").on("click", async () => {
         const presetKey = $("#sk-ini-preset").val();
         const content = $("#sk-ini-output").val();
         const preset = INIGenerators[presetKey];
-        const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
-        saveAs(blob, `tenoke.${preset.ext}`);
+
+        if (presetKey === "goldberg") {
+          // Generate Goldberg ZIP package
+          await downloadGoldbergPackage();
+        } else {
+          // Regular file save
+          const blob = new Blob([content], {
+            type: "text/plain;charset=utf-8",
+          });
+          saveAs(blob, `tenoke.${preset.ext}`);
+        }
       });
 
       $("#sk-btn-ini-copy").on("click", () => {
