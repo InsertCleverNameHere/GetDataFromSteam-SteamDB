@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         SteamDB Data Tool (Polished Text)
+// @name         SteamDB Data Tool (Full INI Generator)
 // @namespace    https://steamdb.info/
-// @version      4.5
-// @description  Fetches Data. Progress Bar. Fixed text spacing in footer stats.
+// @version      5.0
+// @description  Fetches Data. Progress Bar. Stats. Generates full Tenoke INI configuration files.
 // @author       You
 // @match        https://steamdb.info/app/*
 // @icon         https://steamdb.info/static/logos/192px.png
@@ -59,10 +59,8 @@
 
         .sk-textarea { width: 100%; height: 350px; background: #0d121a; color: #a6b2be; border: 1px solid #444; padding: 10px; box-sizing: border-box; font-family: Consolas, monospace; font-size: 12px; resize: vertical; white-space: pre; }
 
-        /* Footer Layout */
         .sk-footer { margin-top: 10px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
         #sk-status { color: #8f98a0; text-align: right; }
-        /* Stats Numbers (Left) - Fixed Spacing/Case */
         #sk-footer-stats { color: #66c0f4; font-weight: bold; font-size: 12px; }
     `);
 
@@ -71,12 +69,17 @@
   // =================================================================
   const Extractor = {
     appId: null,
+    gameName: "Unknown Game",
     data: { achievements: [], dlcs: [] },
     loader: null,
 
     init() {
       this.appId = $(".scope-app[data-appid]").attr("data-appid");
       if (!this.appId) return false;
+
+      // Extract Game Name for the INI header
+      this.gameName = $('h1[itemprop="name"]').text().trim();
+
       this.loader = this.startPreload();
       return true;
     },
@@ -238,7 +241,7 @@
     },
     tenoke_dlc: {
       render: (data) => {
-        if (!data.length) return "; No DLCs found";
+        if (!data.length) return ""; // Empty string for full INI
         let out = "[DLC]\n";
         data.forEach((d) => (out += `${d.id} = "${d.name}"\n`));
         return out;
@@ -250,6 +253,65 @@
         let out = "[dlc]\n";
         data.forEach((d) => (out += `${d.id} = ${d.name}\n`));
         return out;
+      },
+    },
+    // --- Full INI Generator ---
+    tenoke_ini: {
+      render: (allData) => {
+        // Boilerplate
+        let ini = `[TENOKE]
+# appid
+id = ${allData.appId} # ${allData.gameName}
+
+# username
+user = "TENOKE"
+
+# account id
+account = 0x1234
+
+# k_EUniverseInvalid = 0,
+# k_EUniversePublic = 1,
+# k_EUniverseBeta = 2,
+# k_EUniverseInternal = 3,
+# k_EUniverseDev = 4,
+universe = 1
+
+# k_EAccountTypeInvalid = 0,
+# k_EAccountTypeIndividual = 1,		// single user account
+# k_EAccountTypeMultiseat = 2,		// multiseat (e.g. cybercafe) account
+# k_EAccountTypeGameServer = 3,		// game server account
+# k_EAccountTypeAnonGameServer = 4,	// anonymous game server account
+# k_EAccountTypePending = 5,        // pending
+# k_EAccountTypeContentServer = 6,  // content server
+# k_EAccountTypeClan = 7,
+# k_EAccountTypeChat = 8,
+# k_EAccountTypeConsoleUser = 9,    // Fake SteamID for local PSN account on PS3 or Live account on 360, etc.
+# k_EAccountTypeAnonUser = 10,
+account_type = 1
+
+# valid value: arabic, bulgarian, schinese, tchinese, czech, danish, dutch, english,
+#              finnish, french, german, greek, hungarian, italian, japanese, koreana,
+#              norwegian, polish, portuguese, brazilian, romanian, russian, spanish,
+#              latam, swedish, thai, turkish, ukrainian, vietnamese,
+language = "english"
+
+# ISO 3166-1-alpha-2 country code
+# https://www.iban.com/country-codes
+country = "UK"
+
+overlay = false
+
+`;
+        // Add DLCs
+        const dlcSection = Generators.tenoke_dlc.render(allData.data.dlcs);
+        if (dlcSection) ini += dlcSection + "\n";
+
+        // Add Achievements
+        if (allData.data.achievements.length) {
+          ini += Generators.tenoke_ach.render(allData.data.achievements);
+        }
+
+        return ini.trim();
       },
     },
   };
@@ -287,7 +349,6 @@
     const updateBtn = (msg, pct) => {
       $btn.text(msg).prop("disabled", true);
       if (pct !== undefined) {
-        // Render progress bar via background gradient
         $btn.css(
           "background",
           `linear-gradient(90deg, #66c0f4 ${pct}%, #3a4b5d ${pct}%)`
@@ -337,7 +398,7 @@
         saveAs(new Blob([data], { type: "application/zip" }), "icons.zip");
         updateBtn("Download Icons (Zip)");
         $btn.prop("disabled", false);
-        $btn.css("background", ""); // Reset background
+        $btn.css("background", "");
       }
     });
   }
@@ -361,8 +422,10 @@
                         <div class="sk-nav">
                             <div class="sk-nav-item active" data-tab="ach">Achievements</div>
                             <div class="sk-nav-item" data-tab="dlc">DLC</div>
+                            <div class="sk-nav-item" data-tab="ini">Config</div>
                         </div>
                         <div class="sk-body">
+                            <!-- Achievements Tab -->
                             <div id="sk-tab-ach" class="sk-tab active">
                                 <div class="sk-controls">
                                     <select id="sk-ach-preset" class="sk-select">
@@ -377,6 +440,8 @@
                                     <button id="sk-btn-img" class="sk-btn sk-btn-secondary" style="width:100%">Download Icons (Zip)</button>
                                 </div>
                             </div>
+
+                            <!-- DLC Tab -->
                             <div id="sk-tab-dlc" class="sk-tab">
                                 <div class="sk-controls">
                                     <select id="sk-dlc-preset" class="sk-select">
@@ -388,7 +453,20 @@
                                 </div>
                                 <textarea id="sk-dlc-output" class="sk-textarea" readonly>Loading...</textarea>
                             </div>
-                            <!-- FOOTER -->
+
+                            <!-- INI Tab -->
+                            <div id="sk-tab-ini" class="sk-tab">
+                                <div class="sk-controls">
+                                    <select id="sk-ini-preset" class="sk-select">
+                                        <option value="tenoke_ini">Tenoke .ini</option>
+                                    </select>
+                                    <button id="sk-btn-ini-copy" class="sk-btn sk-btn-secondary">Copy</button>
+                                    <button id="sk-btn-ini-save" class="sk-btn sk-btn-primary">Save .ini</button>
+                                </div>
+                                <textarea id="sk-ini-output" class="sk-textarea" readonly>Loading...</textarea>
+                            </div>
+
+                            <!-- Footer -->
                             <div class="sk-footer">
                                 <div id="sk-footer-stats"></div>
                                 <div id="sk-status">Ready</div>
@@ -416,12 +494,12 @@
 
       $(".sk-nav-item").on("click", (e) => {
         const tab = $(e.currentTarget).data("tab");
-        this.activeTab = tab; // Store state
+        this.activeTab = tab;
         $(".sk-nav-item").removeClass("active");
         $(e.currentTarget).addClass("active");
         $(".sk-tab").removeClass("active");
         $(`#sk-tab-${tab}`).addClass("active");
-        this.updateFooterStats(); // Refresh footer numbers
+        this.updateFooterStats();
       });
 
       $("#sk-ach-preset").on("change", () => this.refreshPreview("ach"));
@@ -432,16 +510,23 @@
       $("#sk-dlc-preset").on("change", () => this.refreshPreview("dlc"));
       $("#sk-btn-dlc-save").on("click", () => this.saveFile("dlc"));
       $("#sk-btn-dlc-copy").on("click", () => this.copyToClip("dlc"));
+
+      $("#sk-ini-preset").on("change", () => this.refreshPreview("ini"));
+      $("#sk-btn-ini-save").on("click", () => this.saveFile("ini"));
+      $("#sk-btn-ini-copy").on("click", () => this.copyToClip("ini"));
     },
 
     saveFile(type) {
       const presetKey = $(`#sk-${type}-preset`).val();
       const content = $(`#sk-${type}-output`).val();
-      const fname = presetKey.includes("tenoke")
-        ? type === "ach"
-          ? "tenoke_achievements.ini"
-          : "tenoke_dlc.ini"
-        : "config.ini";
+
+      let fname = "config.ini";
+      if (presetKey.includes("tenoke")) {
+        if (type === "ach") fname = "tenoke_achievements.ini";
+        else if (type === "dlc") fname = "tenoke_dlc.ini";
+        else if (type === "ini") fname = "tenoke.ini";
+      }
+
       saveAs(new Blob([content], { type: "text/plain;charset=utf-8" }), fname);
     },
 
@@ -468,7 +553,7 @@
       }
 
       $status.text("Waiting for background fetch...");
-      $("#sk-ach-output, #sk-dlc-output").val("Loading...");
+      $("#sk-ach-output, #sk-dlc-output, #sk-ini-output").val("Loading...");
 
       try {
         const res = await Extractor.loader;
@@ -484,6 +569,7 @@
     refreshAll() {
       this.refreshPreview("ach");
       this.refreshPreview("dlc");
+      this.refreshPreview("ini");
       this.updateFooterStats();
     },
 
@@ -493,16 +579,25 @@
         const count = Extractor.data.achievements.length;
         const images = count * 2;
         $stats.text(`${count} Achievements (${images} Images)`);
-      } else {
+      } else if (this.activeTab === "dlc") {
         const count = Extractor.data.dlcs.length;
         $stats.text(`${count} DLCs Found`);
+      } else if (this.activeTab === "ini") {
+        $stats.text(`Ready to generate full config`);
       }
     },
 
     refreshPreview(type) {
       const key = $(`#sk-${type}-preset`).val();
-      const data =
-        type === "ach" ? Extractor.data.achievements : Extractor.data.dlcs;
+      let data;
+
+      if (type === "ini") {
+        data = Extractor; // INI needs everything
+      } else {
+        data =
+          type === "ach" ? Extractor.data.achievements : Extractor.data.dlcs;
+      }
+
       const out = Generators[key].render(data);
       $(`#sk-${type}-output`).val(out);
     },
