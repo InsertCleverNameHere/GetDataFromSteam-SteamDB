@@ -2,8 +2,8 @@
 // @name         SteamDB Data Tool (Full INI Generator)
 // @namespace    https://steamdb.info/
 // @version      5.0
-// @description  Fetches Data. Progress Bar. Stats. Generates full Tenoke INI configuration files.
-// @author       You
+// @description  Fetches Achievements/DLCs using the internal SteamDB API. Generates various INIs. "Instant" parallel downloads.
+// @author       SCN
 // @match        https://steamdb.info/app/*
 // @icon         https://steamdb.info/static/logos/192px.png
 // @require      https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js

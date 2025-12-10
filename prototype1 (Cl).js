@@ -1,9 +1,9 @@
 // ==UserScript==
-// @name         SteamDB Data Tool (Fast DL)
+// @name         SteamDB Data Tool
 // @namespace    https://steamdb.info/
 // @version      2.5
-// @description  Fetches Achievements/DLCs using the internal SteamDB API. Generates Tenoke/Codex INIs. "Instant" parallel downloads.
-// @author       You
+// @description  Fetches Achievements/DLCs using the internal SteamDB API. Generates various INIs. "Instant" parallel downloads.
+// @author       SCN
 // @match        https://steamdb.info/app/*
 // @icon         https://steamdb.info/static/logos/192px.png
 // @require      https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js
