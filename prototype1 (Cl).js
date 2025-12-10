@@ -282,7 +282,7 @@
     tenoke: {
       name: "TENOKE (.ini)",
       ext: "ini",
-      zipName: "tenoke_icons.zip",
+      zipName: "icons.zip",
       render: (data) => {
         let out = "";
         data.forEach((ach) => {
@@ -324,7 +324,7 @@
     json: {
       name: "Goldberg / JSON",
       ext: "json",
-      zipName: "icons.zip",
+      zipName: "goldberg_icons.zip",
       render: (data) => JSON.stringify(data, null, 2),
       getFileName: (ach, type) =>
         type === "main" ? ach.iconBase : ach.iconGrayBase,
@@ -418,41 +418,26 @@ overlay = false
   // 4. IMAGE DOWNLOADER (MAXIMUM SPEED)
   // =================================================================
 
-  // Ultra-fast fetch with aggressive settings
+  // Fast fetch using GM_xmlhttpRequest (bypasses CSP)
   const fastFetch = (url) => {
     return new Promise((resolve) => {
       if (!url) return resolve(null);
 
-      // Try native fetch with aggressive settings
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 5000); // 5s timeout
-
-      fetch(url, {
-        mode: "cors",
-        signal: controller.signal,
-        cache: "force-cache", // Use browser cache aggressively
-        priority: "high", // Hint to browser this is important
-      })
-        .then((r) => {
-          clearTimeout(timeout);
-          if (r.ok) return r.arrayBuffer();
-          throw new Error(r.status);
-        })
-        .then((buffer) => resolve(new Uint8Array(buffer)))
-        .catch(() => {
-          clearTimeout(timeout);
-          // Fallback to GM if fetch fails
-          GM_xmlhttpRequest({
-            method: "GET",
-            url: url,
-            responseType: "arraybuffer",
-            timeout: 5000,
-            onload: (res) =>
-              resolve(res.status === 200 ? new Uint8Array(res.response) : null),
-            onerror: () => resolve(null),
-            ontimeout: () => resolve(null),
-          });
-        });
+      GM_xmlhttpRequest({
+        method: "GET",
+        url: url,
+        responseType: "arraybuffer",
+        timeout: 8000,
+        onload: (res) => {
+          if (res.status === 200) {
+            resolve(new Uint8Array(res.response));
+          } else {
+            resolve(null);
+          }
+        },
+        onerror: () => resolve(null),
+        ontimeout: () => resolve(null),
+      });
     });
   };
 
@@ -634,12 +619,17 @@ overlay = false
         const content = $("#sk-ach-output").val();
         const preset = Generators[presetKey];
         const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
-        saveAs(
-          blob,
-          preset.name.includes("Tenoke")
-            ? "tenoke_achievements.ini"
-            : `achievements.${preset.ext}`
-        );
+
+        let filename = `achievements.${preset.ext}`;
+        if (presetKey === "tenoke") {
+          filename = "tenoke.ini";
+        } else if (presetKey === "codex") {
+          filename = "codex.ini";
+        } else if (presetKey === "json") {
+          filename = "achievements.json";
+        }
+
+        saveAs(blob, filename);
       });
 
       $("#sk-btn-copy").on("click", () => {
