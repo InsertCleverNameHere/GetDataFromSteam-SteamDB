@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         SteamDB Data Tool (Fast DL)
 // @namespace    https://steamdb.info/
-// @version      2.3
+// @version      2.4
 // @description  Fetches Achievements/DLCs using the internal SteamDB API. Generates Tenoke/Codex INIs. "Instant" parallel downloads.
 // @author       You
 // @match        https://steamdb.info/app/*
@@ -122,7 +122,7 @@
           url: `https://steamdb.info/api/RenderAppSection/?section=stats&appid=${this.appId}`,
           headers: {
             "X-Requested-With": "XMLHttpRequest",
-            Accept: "text/html", // Force HTML response
+            Accept: "text/html",
           },
           onload: (res) => {
             if (res.status === 200) {
@@ -135,6 +135,82 @@
           onerror: (err) => reject("Network Error"),
         });
       });
+    },
+
+    async fetchDLCViaAPI() {
+      // Use RenderLinkedApps API like the working version
+      return new Promise((resolve, reject) => {
+        GM_xmlhttpRequest({
+          method: "GET",
+          url: `https://steamdb.info/api/RenderLinkedApps/?appid=${this.appId}`,
+          headers: {
+            "X-Requested-With": "XMLHttpRequest",
+            Accept: "text/html",
+          },
+          onload: (res) => {
+            if (res.status === 200) {
+              if (!res.responseText) reject("Empty response from SteamDB");
+              else resolve(res.responseText);
+            } else {
+              reject(`HTTP Error: ${res.status}`);
+            }
+          },
+          onerror: (err) => reject("Network Error"),
+        });
+      });
+    },
+
+    parseDLC(htmlString) {
+      // Use DOMParser to safely parse HTML (avoids CSP issues)
+      const doc = new DOMParser().parseFromString(htmlString, "text/html");
+      const $doc = $(doc);
+      const list = [];
+
+      // Find all app rows
+      const $rows = $doc.find("tr.app[data-appid]");
+
+      $rows.each((i, el) => {
+        const $row = $(el);
+        const appId = $row.attr("data-appid");
+
+        // Type is in 2nd column
+        const type = $row.find("td:nth-of-type(2)").text().trim();
+
+        // Name is in 3rd column
+        // Strategy: Get the <b> tag content OR the link text, but exclude .muted divs
+        const $td3 = $row.find("td:nth-of-type(3)");
+
+        // Method 1: Try to get the <b> tag inside the link (most common)
+        let name = $td3.find("a b").first().text().trim();
+
+        // Method 2: If no <b>, get the link text but remove any .muted content
+        if (!name) {
+          const $link = $td3.find("a").first();
+          // Clone the link, remove all .muted elements, then get text
+          const $clone = $link.clone();
+          $clone.find(".muted").remove();
+          name = $clone.text().trim();
+        }
+
+        // Method 3: Fallback - just try getting link text
+        if (!name) {
+          name = $td3.find("a").first().text().trim();
+        }
+
+        // Clean up the name - remove any extra whitespace
+        name = name.replace(/\s+/g, " ").trim();
+
+        // Only add if it's actually a DLC type and has valid data
+        if (appId && name && (type === "DLC" || type === "Unknown")) {
+          list.push({
+            appId: appId,
+            name: name,
+          });
+        }
+      });
+
+      this.data.dlcs = list;
+      return list.length;
     },
 
     parseAchievements(htmlString) {
@@ -182,6 +258,44 @@
       });
 
       this.data.achievements = list;
+      return list.length;
+    },
+
+    // DLC is already on the page - no fetch needed!
+    parseDLCFromPage() {
+      const list = [];
+
+      // Find DLC table on the current page
+      const $dlcRows = $("#dlc table tbody tr[data-appid]");
+
+      if ($dlcRows.length === 0) {
+        return 0;
+      }
+
+      $dlcRows.each((i, el) => {
+        const $row = $(el);
+        const appId = $row.attr("data-appid");
+
+        // Get the name from the link in the name column
+        let name = $row.find("td:nth-child(3) a").text().trim();
+
+        // Fallback: try second column if third doesn't work
+        if (!name) {
+          name = $row.find("td:nth-child(2) a").text().trim();
+        }
+
+        // Clean up the name
+        name = name.replace(/\s+/g, " ").trim();
+
+        if (appId && name) {
+          list.push({
+            appId: appId,
+            name: name,
+          });
+        }
+      });
+
+      this.data.dlcs = list;
       return list.length;
     },
   };
@@ -239,6 +353,22 @@
       render: (data) => JSON.stringify(data, null, 2),
       getFileName: (ach, type) =>
         type === "main" ? ach.iconBase : ach.iconGrayBase,
+    },
+  };
+
+  const DLCGenerators = {
+    tenoke: {
+      name: "TENOKE (.ini)",
+      ext: "ini",
+      render: (data) => {
+        let out = "[DLC]\n";
+        data.forEach((dlc) => {
+          // Escape quotes in the name
+          const escapedName = dlc.name.replace(/"/g, '\\"');
+          out += `${dlc.appId} = "${escapedName}"\n`;
+        });
+        return out.trim();
+      },
     },
   };
 
@@ -304,7 +434,6 @@
     });
 
     // Fire all requests simultaneously (Parallel Execution)
-    // This mimics the original script's behavior using Promise.all on the whole array
     await Promise.all(tasks.map((t) => t()));
 
     updateBtn("Zipping...");
@@ -339,7 +468,7 @@
                         </div>
                         <div class="sk-nav">
                             <div class="sk-nav-item active" data-tab="ach">Achievements</div>
-                            <div class="sk-nav-item" data-tab="dlc" style="opacity:0.5; cursor:not-allowed">DLC (Coming Soon)</div>
+                            <div class="sk-nav-item" data-tab="dlc">DLC</div>
                         </div>
                         <div class="sk-body">
                             <div id="sk-tab-ach" class="sk-tab active">
@@ -357,6 +486,17 @@
                                     <button id="sk-btn-img" class="sk-btn sk-btn-secondary" style="width:100%">Download Icons (Zip)</button>
                                 </div>
                                 <div id="sk-status" class="sk-info-bar">Ready</div>
+                            </div>
+                            <div id="sk-tab-dlc" class="sk-tab">
+                                <div class="sk-controls">
+                                    <select id="sk-dlc-preset" class="sk-select">
+                                        <option value="tenoke">Tenoke .ini</option>
+                                    </select>
+                                    <button id="sk-btn-dlc-copy" class="sk-btn sk-btn-secondary">Copy</button>
+                                    <button id="sk-btn-dlc-save" class="sk-btn sk-btn-primary">Save .ini</button>
+                                </div>
+                                <textarea id="sk-dlc-output" class="sk-textarea" readonly>Select DLC tab to load data...</textarea>
+                                <div id="sk-dlc-status" class="sk-info-bar">Ready</div>
                             </div>
                         </div>
                     </div>
@@ -382,6 +522,16 @@
         }
       });
 
+      // Tab switching
+      $(".sk-nav-item").on("click", function () {
+        const tab = $(this).data("tab");
+        $(".sk-nav-item").removeClass("active");
+        $(this).addClass("active");
+        $(".sk-tab").removeClass("active");
+        $(`#sk-tab-${tab}`).addClass("active");
+      });
+
+      // Achievement controls
       $("#sk-ach-preset").on("change", () => this.refreshPreview());
 
       $("#sk-btn-save").on("click", () => {
@@ -407,30 +557,60 @@
       $("#sk-btn-img").on("click", () => {
         downloadIcons($("#sk-ach-preset").val());
       });
+
+      // DLC controls
+      $("#sk-dlc-preset").on("change", () => this.refreshDLCPreview());
+
+      $("#sk-btn-dlc-save").on("click", () => {
+        const presetKey = $("#sk-dlc-preset").val();
+        const content = $("#sk-dlc-output").val();
+        const preset = DLCGenerators[presetKey];
+        const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+        saveAs(blob, `tenoke_dlc.${preset.ext}`);
+      });
+
+      $("#sk-btn-dlc-copy").on("click", () => {
+        GM_setClipboard($("#sk-dlc-output").val());
+        const old = $("#sk-btn-dlc-copy").text();
+        $("#sk-btn-dlc-copy").text("Copied!");
+        setTimeout(() => $("#sk-btn-dlc-copy").text(old), 1000);
+      });
     },
 
     open() {
       if (!this.built) this.build();
       $("#sk-overlay").addClass("active");
-      if (Extractor.data.achievements.length === 0) {
-        this.loadData();
+      if (
+        Extractor.data.achievements.length === 0 &&
+        Extractor.data.dlcs.length === 0
+      ) {
+        this.loadAllData();
       }
     },
 
-    async loadData() {
+    async loadAllData() {
       const $status = $("#sk-status");
-      $status.text("Fetching achievements from SteamDB...");
+      $status.text("Fetching data from SteamDB...");
       $("#sk-ach-output").val("Loading...");
+      $("#sk-dlc-output").val("Loading...");
 
       try {
-        const html = await Extractor.fetchStats();
-        const count = Extractor.parseAchievements(html);
-        if (count > 0) {
-          $status.text(`Loaded ${count} achievements.`);
+        const { achCount, dlcCount } = await Extractor.fetchAll();
+
+        if (achCount > 0) {
+          $status.text(
+            `Loaded ${achCount} achievements, ${dlcCount} DLC items.`
+          );
           this.refreshPreview();
+          this.refreshDLCPreview();
         } else {
-          $status.text("No achievements found.");
+          $status.text(`Loaded ${dlcCount} DLC items. No achievements found.`);
           $("#sk-ach-output").val("No achievements found for this app.");
+          if (dlcCount > 0) {
+            this.refreshDLCPreview();
+          } else {
+            $("#sk-dlc-output").val("No DLC found for this app.");
+          }
         }
       } catch (e) {
         console.error(e);
@@ -439,6 +619,7 @@
         if (e.toString().includes("404")) msg += " (Page not found)";
         $status.text("Error!");
         $("#sk-ach-output").val(`${msg}\nDetails: ${e}`);
+        $("#sk-dlc-output").val(`${msg}\nDetails: ${e}`);
       }
     },
 
@@ -448,6 +629,14 @@
       if (!data.length) return;
       const output = Generators[presetKey].render(data);
       $("#sk-ach-output").val(output);
+    },
+
+    refreshDLCPreview() {
+      const presetKey = $("#sk-dlc-preset").val();
+      const data = Extractor.data.dlcs;
+      if (!data.length) return;
+      const output = DLCGenerators[presetKey].render(data);
+      $("#sk-dlc-output").val(output);
     },
   };
 
@@ -461,7 +650,6 @@
     const $btn = $(`<div id="sk-trigger">${Cg}</div>`);
     $btn.on("click", () => UI.open());
     $("body").append($btn);
-    console.log(`[${Cg}] Ready.`);
   }
 
   $(document).ready(init);
