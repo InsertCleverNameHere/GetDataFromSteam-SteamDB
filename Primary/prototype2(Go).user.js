@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         SteamDB Data Fork
 // @namespace    https://steamdb.info/
-// @version      0.2.2
+// @version      0.2.3
 // @description  Fetches Achievements/DLCs. Generates Tenoke, Goldberg, and RUNE configs.
 // @author       SCN
 // @match        https://steamdb.info/app/*
@@ -90,7 +90,14 @@
         .${CONFIG.PREFIX}-tab { display: none; }
         .${CONFIG.PREFIX}-tab.active { display: block; }
 
-        .${CONFIG.PREFIX}-controls { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; }
+        .${CONFIG.PREFIX}-controls {
+            display: flex; margin-bottom: 10px; align-items: center;
+            flex-wrap: nowrap; width: 100%; box-sizing: border-box;
+        }
+
+        /* Direct children spacing (replaces gap to allow full collapse) */
+        .${CONFIG.PREFIX}-controls > * { margin-right: 8px; }
+        .${CONFIG.PREFIX}-controls > *:last-child { margin-right: 0; }
 
         .${CONFIG.PREFIX}-select {
             flex-grow: 1; height: 36px; padding: 0 35px 0 10px;
@@ -100,8 +107,12 @@
             background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23FFFFFF%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E');
             background-repeat: no-repeat; background-position: right 12px center; background-size: 10px;
         }
+        .${CONFIG.PREFIX}-select:disabled { opacity: 0.5; cursor: not-allowed; }
 
-        .${CONFIG.PREFIX}-checkbox-label { display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 13px; user-select: none; color: #8f98a0; }
+        .${CONFIG.PREFIX}-checkbox-label {
+            display: flex; align-items: center; gap: 5px; cursor: pointer;
+            font-size: 13px; user-select: none; color: #8f98a0; white-space: nowrap;
+        }
         .${CONFIG.PREFIX}-checkbox-label:hover { color: #fff; }
         .${CONFIG.PREFIX}-checkbox-label.disabled { opacity: 0.5; cursor: not-allowed; }
         .${CONFIG.PREFIX}-checkbox { accent-color: #66c0f4; width: 16px; height: 16px; margin: 0; cursor: pointer; }
@@ -111,12 +122,20 @@
             padding: 0 16px; height: 36px; line-height: 36px;
             border: none; border-radius: 3px; cursor: pointer; font-weight: bold; color: #fff;
             transition: background 0.2s; position: relative; overflow: hidden; font-size: 13px;
+            white-space: nowrap;
         }
         .${CONFIG.PREFIX}-btn-primary { background: #66c0f4; color: #000; }
         .${CONFIG.PREFIX}-btn-primary:hover { background: #fff; }
         .${CONFIG.PREFIX}-btn-secondary { background: #3a4b5d; }
         .${CONFIG.PREFIX}-btn-secondary:hover { background: #4b627a; }
         .${CONFIG.PREFIX}-btn:disabled { opacity: 0.8; cursor: not-allowed; color: #ddd; }
+
+        .${CONFIG.PREFIX}-btn.pause-mode { background: #f39c12; color: #fff; }
+        .${CONFIG.PREFIX}-btn.pause-mode:hover { background: #d68910; }
+        .${CONFIG.PREFIX}-btn.resume-mode { background: #27ae60; color: #fff; }
+        .${CONFIG.PREFIX}-btn.resume-mode:hover { background: #2ecc71; }
+        .${CONFIG.PREFIX}-btn.cancel-mode { background: #c0392b; color: #fff; }
+        .${CONFIG.PREFIX}-btn.cancel-mode:hover { background: #e74c3c; }
 
         .${CONFIG.PREFIX}-textarea {
             width: 100%; height: 350px; background: #0d121a; color: #a6b2be;
@@ -127,6 +146,61 @@
         .${CONFIG.PREFIX}-footer { margin-top: 10px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
         #${CONFIG.PREFIX}-status { color: #8f98a0; text-align: right; }
         #${CONFIG.PREFIX}-footer-stats { color: #66c0f4; font-weight: bold; font-size: 12px; }
+
+        /* --- Transitions for Download UI --- */
+
+        /* Items that hide: Smoothly collapse to 0 width/margin */
+        .${CONFIG.PREFIX}-trans-hide {
+            transition: all 0.3s ease-in-out;
+            max-width: 300px;
+            opacity: 1;
+            margin-right: 8px; /* Standard gap */
+            visibility: visible;
+        }
+
+        /* Items that show: Smoothly expand from 0 width */
+        .${CONFIG.PREFIX}-trans-show {
+            transition: all 0.3s ease-in-out;
+            max-width: 0;
+            opacity: 0;
+            overflow: hidden;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+            margin: 0 !important;
+            border-width: 0 !important;
+            white-space: nowrap;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        /* The main button: Acts as "gas", fills empty space */
+        .${CONFIG.PREFIX}-btn-grow {
+            transition: flex-grow 0.3s ease-in-out, background 0.3s ease;
+            flex-grow: 1; /* Always flexible */
+        }
+
+        /* --- Active Downloading State (.sdb-fork-downloading) --- */
+
+        /* Collapse hidden items completely */
+        .${CONFIG.PREFIX}-downloading .${CONFIG.PREFIX}-trans-hide {
+            max-width: 0;
+            opacity: 0;
+            margin: 0 !important;
+            padding: 0 !important;
+            border: 0 !important;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        /* Expand hidden buttons */
+        .${CONFIG.PREFIX}-downloading .${CONFIG.PREFIX}-trans-show {
+            max-width: 120px;
+            opacity: 1;
+            padding: 0 16px !important;
+            margin-left: 8px !important; /* Restore gap */
+            visibility: visible;
+            pointer-events: auto;
+        }
     `);
 
   // =================================================================
@@ -381,7 +455,76 @@
   // 6. PACKAGER (DOWNLOAD & ZIP)
   // =================================================================
   const Packager = {
-    async fetchImagesWithProgress(achs, btnSelector) {
+    // State tracking
+    state: { active: false, stop: false, paused: false, resumeResolver: null },
+
+    // Helper: Toggle UI Controls with Smooth CSS Transitions
+    toggleControls(containerSelector, isDownloading) {
+      const p = CONFIG.PREFIX;
+      const $container = $(containerSelector);
+
+      // Toggle state class on the container
+      if (isDownloading) {
+        $container.addClass(`${p}-downloading`);
+        $container
+          .find(`.${p}-btn-grow`)
+          .prop("disabled", true)
+          .text("Starting...");
+        // Inputs disabled handled via css pointer-events or js prop
+        $container
+          .find(`select, input, button[id*="copy"]`)
+          .prop("disabled", true);
+      } else {
+        $container.removeClass(`${p}-downloading`);
+        // Reset main button text happens in caller
+        $container
+          .find(`select, input, button[id*="copy"]`)
+          .prop("disabled", false);
+      }
+    },
+
+    // Action: Cancel
+    cancel() {
+      if (this.state.active) {
+        this.state.stop = true;
+        if (this.state.resumeResolver) {
+          this.state.resumeResolver();
+        }
+      }
+    },
+
+    // Action: Toggle Pause
+    togglePause(btnSelector) {
+      if (this.state.paused) {
+        this.state.paused = false;
+        if (this.state.resumeResolver) {
+          this.state.resumeResolver();
+          this.state.resumeResolver = null;
+        }
+        $(btnSelector)
+          .text("Pause")
+          .removeClass("resume-mode")
+          .addClass("pause-mode");
+      } else {
+        this.state.paused = true;
+        $(btnSelector)
+          .text("Resume")
+          .removeClass("pause-mode")
+          .addClass("resume-mode");
+      }
+    },
+
+    async fetchImagesWithProgress(achs, containerSelector, btnSelector) {
+      this.state = {
+        active: true,
+        stop: false,
+        paused: false,
+        resumeResolver: null,
+      };
+
+      // Update UI to Download Mode (Transitions)
+      this.toggleControls(containerSelector, true);
+
       const tasks = [];
       achs.forEach((ach) => {
         if (ach.iconUrl && ach.iconBase)
@@ -393,37 +536,62 @@
       const total = tasks.length;
       let completed = 0;
       const downloadedData = {};
-      const $btn = $(btnSelector);
+      const $statusBtn = $(btnSelector);
 
-      const updateBtn = (msg, pct) => {
-        $btn.text(msg);
-        if (pct !== undefined) {
-          const p = Math.floor(pct * 100);
-          $btn.css(
-            "background",
-            `linear-gradient(90deg, #66c0f4 ${p}%, #3a4b5d ${p}%)`
-          );
-        }
+      const updateProgress = (pct) => {
+        if (this.state.stop) return;
+        const p = Math.floor(pct * 100);
+        $statusBtn.text(`Downloading... ${p}%`);
+        $statusBtn.css(
+          "background",
+          `linear-gradient(90deg, #66c0f4 ${p}%, #3a4b5d ${p}%)`
+        );
       };
 
-      for (let i = 0; i < tasks.length; i += CONFIG.BATCH_SIZE) {
-        const batch = tasks.slice(i, i + CONFIG.BATCH_SIZE);
-        await Promise.all(
-          batch.map(async (task) => {
-            const buf = await Network.fetchBuffer(task.url);
-            if (buf) downloadedData[task.name] = buf;
-            completed++;
-          })
-        );
-        updateBtn(
-          `Downloading... ${Math.floor((completed / total) * 100)}%`,
-          completed / total
-        );
+      try {
+        for (let i = 0; i < tasks.length; ) {
+          if (this.state.stop) throw new Error("CANCELLED");
+
+          if (this.state.paused) {
+            $statusBtn.text(
+              `Paused (${Math.floor((completed / total) * 100)}%)`
+            );
+            await new Promise((res) => (this.state.resumeResolver = res));
+            if (this.state.stop) throw new Error("CANCELLED");
+          }
+
+          const batch = tasks.slice(i, i + CONFIG.BATCH_SIZE);
+          await Promise.all(
+            batch.map(async (task) => {
+              const buf = await Network.fetchBuffer(task.url);
+              if (buf) downloadedData[task.name] = buf;
+              completed++;
+            })
+          );
+
+          updateProgress(completed / total);
+          i += CONFIG.BATCH_SIZE;
+        }
+      } catch (e) {
+        if (e.message === "CANCELLED") {
+          $statusBtn.text("Cancelled").css("background", "");
+          setTimeout(() => {
+            this.toggleControls(containerSelector, false);
+            $statusBtn
+              .text($statusBtn.data("original-text"))
+              .prop("disabled", false);
+          }, 1000);
+          this.state.active = false;
+          return null;
+        }
       }
+
+      $statusBtn.text("Zipping...").css("background", "");
       return downloadedData;
     },
 
     async downloadTenoke(appInfo, dlcs, achs, withIcons, btnSelector) {
+      const container = `#${CONFIG.PREFIX}-tab-ini .${CONFIG.PREFIX}-controls`;
       const iniContent = Generators.tenoke_ini.render(appInfo, dlcs, achs);
 
       // If icons are NOT requested, simply save the text file directly.
@@ -432,9 +600,6 @@
           new Blob([iniContent], { type: "text/plain;charset=utf-8" }),
           "tenoke.ini"
         );
-        // Reset button text manually since finalizeZip won't run
-        const $btn = $(btnSelector);
-        $btn.text("Download").prop("disabled", false).css("background", "");
         return;
       }
 
@@ -442,18 +607,28 @@
       zip["tenoke.ini"] = new TextEncoder().encode(iniContent);
 
       if (withIcons && achs.length > 0) {
-        const icons = await this.fetchImagesWithProgress(achs, btnSelector);
+        // Save original text to restore after download
+        $(btnSelector).data("original-text", "Download");
+        const icons = await this.fetchImagesWithProgress(
+          achs,
+          container,
+          btnSelector
+        );
+        if (!icons) return;
+
         const innerZipData = {};
         for (const [name, buf] of Object.entries(icons))
           innerZipData[name] = buf;
+
         zip["icons.zip"] = await new Promise((res) =>
           fflate.zip(innerZipData, { level: 0 }, (err, data) => res(data))
         );
       }
-      this.finalizeZip(zip, "tenoke_release.zip", btnSelector);
+      this.finalizeZip(zip, "tenoke_release.zip", container, btnSelector);
     },
 
     async downloadGoldberg(appInfo, dlcs, achs, withIcons, btnSelector) {
+      const container = `#${CONFIG.PREFIX}-tab-ini .${CONFIG.PREFIX}-controls`;
       const zip = {};
       zip["steam_settings/steam_appid.txt"] = new TextEncoder().encode(
         appInfo.appId
@@ -470,16 +645,31 @@
         zip["steam_settings/configs.app.ini"] = new TextEncoder().encode(ini);
       }
       if (withIcons && achs.length > 0) {
-        const icons = await this.fetchImagesWithProgress(achs, btnSelector);
+        $(btnSelector).data("original-text", "Download");
+        const icons = await this.fetchImagesWithProgress(
+          achs,
+          container,
+          btnSelector
+        );
+        if (!icons) return;
+
         for (const [name, buf] of Object.entries(icons)) {
           zip[`steam_settings/img/${name}`] = buf;
         }
       }
-      this.finalizeZip(zip, "steam_settings.zip", btnSelector);
+      this.finalizeZip(zip, "steam_settings.zip", container, btnSelector);
     },
 
     async downloadIconsOnly(achs, presetKey, btnSelector) {
-      const icons = await this.fetchImagesWithProgress(achs, btnSelector);
+      const container = `#${CONFIG.PREFIX}-ach-image-row`;
+      $(btnSelector).data("original-text", "Download Icons (Zip)");
+      const icons = await this.fetchImagesWithProgress(
+        achs,
+        container,
+        btnSelector
+      );
+      if (!icons) return;
+
       const preset = Generators[presetKey];
       const zip = {};
 
@@ -490,16 +680,22 @@
           zip[preset.getFileName(ach, "gray")] = icons[ach.iconGrayBase];
       });
 
-      this.finalizeZip(zip, "icons.zip", btnSelector);
+      this.finalizeZip(zip, "icons.zip", container, btnSelector);
     },
 
-    finalizeZip(zipData, filename, btnSelector) {
-      const $btn = $(btnSelector);
-      $btn.text("Zipping...");
+    finalizeZip(zipData, filename, containerSelector, btnSelector) {
       fflate.zip(zipData, { level: 0, mem: 8 }, (err, data) => {
         if (err) alert("Zip error: " + err);
         else saveAs(new Blob([data], { type: "application/zip" }), filename);
-        $btn.text("Download").prop("disabled", false).css("background", "");
+
+        // Reset UI
+        this.toggleControls(containerSelector, false);
+        const $btn = $(btnSelector);
+        $btn
+          .text($btn.data("original-text"))
+          .prop("disabled", false)
+          .css("background", "");
+        this.state.active = false;
       });
     },
   };
@@ -662,8 +858,10 @@
                                     <button id="${p}-btn-ach-save" class="${p}-btn ${p}-btn-primary">Save</button>
                                 </div>
                                 <textarea id="${p}-ach-output" class="${p}-textarea" readonly>Loading...</textarea>
-                                <div class="${p}-controls" style="margin-top:15px;">
-                                    <button id="${p}-btn-img" class="${p}-btn ${p}-btn-secondary" style="width:100%">Download Icons (Zip)</button>
+                                <div id="${p}-ach-image-row" class="${p}-controls" style="margin-top:15px; display:flex;">
+                                    <button id="${p}-btn-img" class="${p}-btn ${p}-btn-secondary ${p}-btn-grow" style="flex-grow:1">Download Icons (Zip)</button>
+                                    <button id="${p}-btn-ach-pause" class="${p}-btn pause-mode ${p}-trans-show">Pause</button>
+                                    <button id="${p}-btn-ach-cancel" class="${p}-btn cancel-mode ${p}-trans-show">Cancel</button>
                                 </div>
                             </div>
                             <!-- DLC -->
@@ -680,15 +878,17 @@
                             <!-- Config -->
                             <div id="${p}-tab-ini" class="${p}-tab">
                                 <div class="${p}-controls">
-                                    <select id="${p}-ini-preset" class="${p}-select">
+                                    <select id="${p}-ini-preset" class="${p}-select ${p}-trans-hide">
                                         ${getOptions("ini")}
                                     </select>
-                                    <label class="${p}-checkbox-label" id="${p}-ini-icons-label">
+                                    <label class="${p}-checkbox-label ${p}-trans-hide" id="${p}-ini-icons-label">
                                         <input type="checkbox" id="${p}-ini-include-icons" class="${p}-checkbox">
                                         Include Icons
                                     </label>
-                                    <button id="${p}-btn-ini-copy" class="${p}-btn ${p}-btn-secondary">Copy</button>
-                                    <button id="${p}-btn-ini-save" class="${p}-btn ${p}-btn-primary">Download</button>
+                                    <button id="${p}-btn-ini-copy" class="${p}-btn ${p}-btn-secondary ${p}-trans-hide">Copy</button>
+                                    <button id="${p}-btn-ini-save" class="${p}-btn ${p}-btn-primary ${p}-btn-grow">Download</button>
+                                    <button id="${p}-btn-ini-pause" class="${p}-btn pause-mode ${p}-trans-show">Pause</button>
+                                    <button id="${p}-btn-ini-cancel" class="${p}-btn cancel-mode ${p}-trans-show">Cancel</button>
                                 </div>
                                 <textarea id="${p}-ini-output" class="${p}-textarea" readonly>Loading...</textarea>
                             </div>
@@ -708,14 +908,18 @@
     bindEvents(ctx) {
       const p = CONFIG.PREFIX;
 
-      // Close
+      // Close (Auto-Cancel Logic)
+      const closeModal = () => {
+        $(`#${p}-overlay`).removeClass("active");
+        Packager.cancel();
+      };
+
       $(`.${p}-close, #${p}-overlay`).on("click", (e) => {
-        if (e.target === e.currentTarget)
-          $(`#${p}-overlay`).removeClass("active");
+        if (e.target === e.currentTarget) closeModal();
       });
       $(document).on("keydown", (e) => {
         if (e.key === "Escape" && $(`#${p}-overlay`).hasClass("active"))
-          $(`#${p}-overlay`).removeClass("active");
+          closeModal();
       });
 
       // Tabs
@@ -790,13 +994,15 @@
         );
       });
 
-      // Image DL
+      // Download Actions
+
+      // 1. Achievements Tab Image Download
       $(`#${p}-btn-img`).on("click", () => {
         const key = $(`#${p}-ach-preset`).val();
         Packager.downloadIconsOnly(ctx.achievements, key, `#${p}-btn-img`);
       });
 
-      // Full Package DL
+      // 2. Full Config Tab Download
       $(`#${p}-btn-ini-save`).on("click", () => {
         const key = $(`#${p}-ini-preset`).val();
         const withIcons = $(`#${p}-ini-include-icons`).is(":checked");
@@ -825,6 +1031,16 @@
             Generators.rune_ini.filename
           );
         }
+      });
+
+      // Global Pause/Cancel Handlers
+      // Using wildcards to catch both ach and ini buttons
+      $(`button[id*="-pause"]`).on("click", function (e) {
+        Packager.togglePause(this);
+      });
+
+      $(`button[id*="-cancel"]`).on("click", function () {
+        Packager.cancel();
       });
     },
   };
