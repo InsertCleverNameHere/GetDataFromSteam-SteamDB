@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         SteamDB Data Fork
 // @namespace    https://steamdb.info/
-// @version      0.2.1
-// @description  Fetches Achievements/DLCs. Generates Tenoke/Goldberg configs. Polished UI. Silent Console.
+// @version      0.2.2
+// @description  Fetches Achievements/DLCs. Generates Tenoke, Goldberg, and RUNE configs.
 // @author       SCN
 // @match        https://steamdb.info/app/*
 // @icon         https://steamdb.info/static/logos/192px.png
@@ -27,6 +27,19 @@
     PREFIX: "sdb-fork",
   };
 
+  const RUNE_ASCII = `###                                                                \\    /
+###                       _  _                 _            _      \\\\__//
+###      ____ ._/______:_//\\//_/____       _  //___  ./_ __//_____:_\\\\//
+###     :\\  //_/    _  . /_/  /    /_/__:_//_/    /\\ /\\__/_    _  . /\\\\\\
+###      \\\\///      ____/___./    / /     / /    /  /  \\X_/   //___/ /_\\_
+###     . \\///   _______   _/_   /_/    _/_/     \\\\/   //        /_\\_\\  /.
+###       z_/   _/\  _/   // /         //      /  \\   ///     __//   :\\//
+###     | / _   / /\\//   /__//      __//_   _ /\\     /X/     /__/   |/\\/2
+###   --+-_=\\__/ / /    / \\_____:__/ //\\____// /\\   /\\/__:_______=_-+--\\4
+###     |-\\__\\- / /________\\____.__\\/- -\\--/_\\/_______\\--.\\________\\|___\\
+###      = dS!\\/- -\\_______\\ =-RUNE- -== \\/ ==-\\______\\-= ======== --\\__\\
+###`;
+
   // =================================================================
   // 2. STYLES
   // =================================================================
@@ -35,40 +48,40 @@
             position: fixed; bottom: 20px; right: 20px;
             background: #1b2838; color: #66c0f4; border: 1px solid #66c0f4;
             padding: 10px 20px; border-radius: 4px; font-weight: bold; cursor: pointer;
-            z-index: 9999; box-shadow: 0 4px 10px rgba(0,0,0,0.5); 
+            z-index: 9999; box-shadow: 0 4px 10px rgba(0,0,0,0.5);
             font-family: "Motiva Sans", Arial, sans-serif;
             transition: all 0.2s;
         }
         #${CONFIG.PREFIX}-trigger:hover { background: #66c0f4; color: #fff; transform: translateY(-2px); }
 
-        #${CONFIG.PREFIX}-overlay { 
-            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-            background: rgba(0,0,0,0.85); z-index: 10000; 
-            justify-content: center; align-items: center; 
+        #${CONFIG.PREFIX}-overlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); z-index: 10000;
+            justify-content: center; align-items: center;
         }
         #${CONFIG.PREFIX}-overlay.active { display: flex; }
 
-        #${CONFIG.PREFIX}-modal { 
-            background: #16202d; width: 700px; max-height: 90vh; 
-            display: flex; flex-direction: column; 
-            border-radius: 6px; border: 1px solid #2a475e; 
-            font-family: "Motiva Sans", Arial, sans-serif; color: #c6d4df; 
+        #${CONFIG.PREFIX}-modal {
+            background: #16202d; width: 700px; max-height: 90vh;
+            display: flex; flex-direction: column;
+            border-radius: 6px; border: 1px solid #2a475e;
+            font-family: "Motiva Sans", Arial, sans-serif; color: #c6d4df;
             box-shadow: 0 0 40px rgba(0,0,0,0.5);
         }
 
-        .${CONFIG.PREFIX}-header { 
-            padding: 15px 20px; background: #101822; border-bottom: 1px solid #2a475e; 
-            display: flex; justify-content: space-between; align-items: center; 
+        .${CONFIG.PREFIX}-header {
+            padding: 15px 20px; background: #101822; border-bottom: 1px solid #2a475e;
+            display: flex; justify-content: space-between; align-items: center;
         }
         .${CONFIG.PREFIX}-header h3 { margin: 0; color: #fff; font-size: 18px; }
         .${CONFIG.PREFIX}-close { cursor: pointer; font-size: 24px; color: #67c1f5; }
         .${CONFIG.PREFIX}-close:hover { color: #fff; }
 
         .${CONFIG.PREFIX}-nav { display: flex; background: #1b2838; border-bottom: 1px solid #000; }
-        .${CONFIG.PREFIX}-nav-item { 
-            flex: 1; padding: 15px; text-align: center; cursor: pointer; color: #8f98a0; 
-            border-bottom: 3px solid transparent; font-weight: bold; font-size: 14px; 
-            transition: background 0.2s; 
+        .${CONFIG.PREFIX}-nav-item {
+            flex: 1; padding: 15px; text-align: center; cursor: pointer; color: #8f98a0;
+            border-bottom: 3px solid transparent; font-weight: bold; font-size: 14px;
+            transition: background 0.2s;
         }
         .${CONFIG.PREFIX}-nav-item:hover { background: #233246; color: #fff; }
         .${CONFIG.PREFIX}-nav-item.active { border-bottom-color: #66c0f4; color: #fff; background: #233246; }
@@ -76,25 +89,27 @@
         .${CONFIG.PREFIX}-body { padding: 20px; overflow-y: auto; flex-grow: 1; min-height: 400px; }
         .${CONFIG.PREFIX}-tab { display: none; }
         .${CONFIG.PREFIX}-tab.active { display: block; }
-        
+
         .${CONFIG.PREFIX}-controls { display: flex; gap: 10px; margin-bottom: 10px; align-items: center; }
-        
-        .${CONFIG.PREFIX}-select { 
+
+        .${CONFIG.PREFIX}-select {
             flex-grow: 1; height: 36px; padding: 0 35px 0 10px;
-            background-color: #000; color: #fff; border: 1px solid #444; border-radius: 3px; 
+            background-color: #000; color: #fff; border: 1px solid #444; border-radius: 3px;
             outline: none; cursor: pointer; font-size: 13px;
             appearance: none; -webkit-appearance: none; -moz-appearance: none;
             background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23FFFFFF%22%20d%3D%22M287%2069.4a17.6%2017.6%200%200%200-13-5.4H18.4c-5%200-9.3%201.8-12.9%205.4A17.6%2017.6%200%200%200%200%2082.2c0%205%201.8%209.3%205.4%2012.9l128%20127.9c3.6%203.6%207.8%205.4%2012.8%205.4s9.2-1.8%2012.8-5.4L287%2095c3.5-3.5%205.4-7.8%205.4-12.8%200-5-1.9-9.2-5.5-12.8z%22%2F%3E%3C%2Fsvg%3E');
             background-repeat: no-repeat; background-position: right 12px center; background-size: 10px;
         }
-        
+
         .${CONFIG.PREFIX}-checkbox-label { display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 13px; user-select: none; color: #8f98a0; }
         .${CONFIG.PREFIX}-checkbox-label:hover { color: #fff; }
+        .${CONFIG.PREFIX}-checkbox-label.disabled { opacity: 0.5; cursor: not-allowed; }
         .${CONFIG.PREFIX}-checkbox { accent-color: #66c0f4; width: 16px; height: 16px; margin: 0; cursor: pointer; }
+        .${CONFIG.PREFIX}-checkbox:disabled { cursor: not-allowed; }
 
-        .${CONFIG.PREFIX}-btn { 
+        .${CONFIG.PREFIX}-btn {
             padding: 0 16px; height: 36px; line-height: 36px;
-            border: none; border-radius: 3px; cursor: pointer; font-weight: bold; color: #fff; 
+            border: none; border-radius: 3px; cursor: pointer; font-weight: bold; color: #fff;
             transition: background 0.2s; position: relative; overflow: hidden; font-size: 13px;
         }
         .${CONFIG.PREFIX}-btn-primary { background: #66c0f4; color: #000; }
@@ -103,12 +118,12 @@
         .${CONFIG.PREFIX}-btn-secondary:hover { background: #4b627a; }
         .${CONFIG.PREFIX}-btn:disabled { opacity: 0.8; cursor: not-allowed; color: #ddd; }
 
-        .${CONFIG.PREFIX}-textarea { 
-            width: 100%; height: 350px; background: #0d121a; color: #a6b2be; 
-            border: 1px solid #444; padding: 10px; box-sizing: border-box; 
-            font-family: Consolas, monospace; font-size: 12px; resize: vertical; white-space: pre; 
+        .${CONFIG.PREFIX}-textarea {
+            width: 100%; height: 350px; background: #0d121a; color: #a6b2be;
+            border: 1px solid #444; padding: 10px; box-sizing: border-box;
+            font-family: Consolas, monospace; font-size: 12px; resize: vertical; white-space: pre;
         }
-        
+
         .${CONFIG.PREFIX}-footer { margin-top: 10px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
         #${CONFIG.PREFIX}-status { color: #8f98a0; text-align: right; }
         #${CONFIG.PREFIX}-footer-stats { color: #66c0f4; font-weight: bold; font-size: 12px; }
@@ -234,7 +249,11 @@
   // 5. GENERATORS MODULE
   // =================================================================
   const Generators = {
+    // --- ACHIEVEMENTS ---
     tenoke_ach: {
+      type: "ach",
+      name: "Tenoke (.ini)",
+      supportsIcons: true,
       render: (data) => {
         let out = "";
         data.forEach((ach) => {
@@ -252,6 +271,9 @@
     },
 
     json_ach: {
+      type: "ach",
+      name: "Goldberg / JSON (.json)",
+      supportsIcons: true,
       render: (data) => {
         const achievements = data.map((ach) => ({
           hidden: ach.hidden ? 1 : 0,
@@ -267,7 +289,11 @@
         type === "main" ? ach.iconBase : ach.iconGrayBase,
     },
 
+    // --- DLC ---
     tenoke_dlc: {
+      type: "dlc",
+      name: "Tenoke (.ini)",
+      filename: "tenoke.ini",
       render: (data) => {
         if (!data.length) return "";
         let out = "[DLC]\n";
@@ -276,6 +302,9 @@
       },
     },
     goldberg_dlc: {
+      type: "dlc",
+      name: "Goldberg (.ini)",
+      filename: "configs.app.ini",
       render: (data) => {
         let out = "[app::dlcs]\nunlock_all=0\n";
         if (data.length > 0) {
@@ -284,8 +313,23 @@
         return out;
       },
     },
+    rune_dlc: {
+      type: "dlc",
+      name: "RUNE (.ini)",
+      filename: "steam_emu.ini",
+      render: (data) => {
+        let out =
+          "[DLC]\n###\n### Automatically unlock all DLCs\n###\nDLCUnlockall=0\n###\n### Identifiers for DLCs\n###\n#ID=Name\n";
+        data.forEach((d) => (out += `${d.id}=${d.name}\n`));
+        return out;
+      },
+    },
 
+    // --- FULL PACKAGES ---
     tenoke_ini: {
+      type: "ini",
+      name: "Tenoke Full Config",
+      supportsIcons: true,
       render: (appInfo, dlcs, achs) => {
         let ini = `[TENOKE]\nid = ${appInfo.appId} # ${appInfo.gameName}\nuser = "TENOKE"\naccount = 0x1234\nuniverse = 1\naccount_type = 1\nlanguage = "english"\ncountry = "UK"\noverlay = false\n\n`;
         if (dlcs.length) ini += Generators.tenoke_dlc.render(dlcs) + "\n\n";
@@ -294,12 +338,41 @@
       },
     },
     goldberg_zip: {
+      type: "ini",
+      name: "Goldberg Full Package",
+      supportsIcons: true,
       render: (appInfo, dlcs, achs) => {
         const ac = achs.length;
         const dc = dlcs.length;
         return `[Goldberg Configuration Package]\n\nClicking 'Download' will generate a ZIP containing:\n\n1. steam_settings/steam_appid.txt\n2. steam_settings/achievements.json (${ac} items)\n3. steam_settings/configs.app.ini (${dc} items)\n4. steam_settings/img/ (${
           ac * 2
         } images)\n\nNote: This saves time by organizing the folder structure automatically.`;
+      },
+    },
+    rune_ini: {
+      type: "ini",
+      name: "RUNE Full Config",
+      filename: "steam_emu.ini",
+      supportsIcons: false,
+      render: (appInfo, dlcs, achs) => {
+        const id = appInfo.appId;
+        let out = RUNE_ASCII + "\n\n";
+        out += `###\n###\n### Game data is stored at %SystemDrive%\\Users\\Public\\Documents\\Steam\\RUNE\\${id}\n###\n\n`;
+        out += `[Settings]\n###\n### Game identifier (http://store.steampowered.com/app/${id})\n###\nAppId=${id}\n`;
+        out += `###\n### Steam Account ID, set it to 0 to get a random Account ID\n###\n#AccountId=0\n`;
+        out += `### \n### Name of the current player\n###\nUserName=RUNE\n`;
+        out += `###\n### Language that will be used in the game\n###\nLanguage=english\n`;
+        out += `###\n### Enable lobby mode\n###\nLobbyEnabled=1\n`;
+        out += `###\n### Lobby port to listen on\n###\n#LobbyPort=31183\n`;
+        out += `###\n### Enable/Disable Steam overlay\n###\nOverlays=1\n`;
+        out += `###\n### Set Steam connection to offline mode\n###\nOffline=0\n`;
+        out += `###\nLegacyCallbacks=1\n###\n\n`;
+        out += `[Interfaces]\n###\n### Steam Client API interface versions\n###\n###\n\n`;
+        out += `[DLC]\n###\n### Automatically unlock all DLCs\n###\nDLCUnlockall=0\n`;
+        out += `###\n### Identifiers for DLCs\n###\n#ID=Name\n`;
+        if (dlcs.length) dlcs.forEach((d) => (out += `${d.id}=${d.name}\n`));
+        out += `###\n\n[Crack]\n`;
+        return out;
       },
     },
   };
@@ -351,21 +424,24 @@
     },
 
     async downloadTenoke(appInfo, dlcs, achs, withIcons, btnSelector) {
-      if (!withIcons) {
-        const content = Generators.tenoke_ini.render(appInfo, dlcs, achs);
+      const iniContent = Generators.tenoke_ini.render(appInfo, dlcs, achs);
+
+      // If icons are NOT requested, simply save the text file directly.
+      if (!withIcons || achs.length === 0) {
         saveAs(
-          new Blob([content], { type: "text/plain;charset=utf-8" }),
+          new Blob([iniContent], { type: "text/plain;charset=utf-8" }),
           "tenoke.ini"
         );
+        // Reset button text manually since finalizeZip won't run
+        const $btn = $(btnSelector);
+        $btn.text("Download").prop("disabled", false).css("background", "");
         return;
       }
 
       const zip = {};
-      zip["tenoke.ini"] = new TextEncoder().encode(
-        Generators.tenoke_ini.render(appInfo, dlcs, achs)
-      );
+      zip["tenoke.ini"] = new TextEncoder().encode(iniContent);
 
-      if (achs.length > 0) {
+      if (withIcons && achs.length > 0) {
         const icons = await this.fetchImagesWithProgress(achs, btnSelector);
         const innerZipData = {};
         for (const [name, buf] of Object.entries(icons))
@@ -439,6 +515,7 @@
     loader: null,
     uiBuilt: false,
     activeTab: "ach",
+    iconState: false, // Default unchecked
 
     init() {
       this.appId = $(".scope-app[data-appid]").attr("data-appid");
@@ -524,19 +601,24 @@
 
     renderTab(type) {
       const presetKey = $(`#${CONFIG.PREFIX}-${type}-preset`).val();
+      const generator = Generators[presetKey];
+      if (!generator) return;
+
       let out = "";
 
-      if (type === "ach")
+      if (type === "ach") {
         out = this.achievements.length
-          ? Generators[presetKey].render(this.achievements)
+          ? generator.render(this.achievements)
           : "No achievements found.";
-      else if (type === "dlc") out = Generators[presetKey].render(this.dlcs);
-      else if (type === "ini")
-        out = Generators[presetKey].render(
+      } else if (type === "dlc") {
+        out = generator.render(this.dlcs);
+      } else if (type === "ini") {
+        out = generator.render(
           { appId: this.appId, gameName: this.gameName },
           this.dlcs,
           this.achievements
         );
+      }
 
       $(`#${CONFIG.PREFIX}-${type}-output`).val(out);
     },
@@ -548,6 +630,15 @@
   const UI = {
     build(ctx) {
       const p = CONFIG.PREFIX;
+
+      // Helper to generate options
+      const getOptions = (type) => {
+        return Object.entries(Generators)
+          .filter(([key, gen]) => gen.type === type)
+          .map(([key, gen]) => `<option value="${key}">${gen.name}</option>`)
+          .join("");
+      };
+
       const modal = `
                 <div id="${p}-overlay">
                     <div id="${p}-modal">
@@ -565,8 +656,7 @@
                             <div id="${p}-tab-ach" class="${p}-tab active">
                                 <div class="${p}-controls">
                                     <select id="${p}-ach-preset" class="${p}-select">
-                                        <option value="tenoke_ach">Tenoke .ini</option>
-                                        <option value="json_ach">Goldberg .json</option>
+                                        ${getOptions("ach")}
                                     </select>
                                     <button id="${p}-btn-ach-copy" class="${p}-btn ${p}-btn-secondary">Copy</button>
                                     <button id="${p}-btn-ach-save" class="${p}-btn ${p}-btn-primary">Save</button>
@@ -580,8 +670,7 @@
                             <div id="${p}-tab-dlc" class="${p}-tab">
                                 <div class="${p}-controls">
                                     <select id="${p}-dlc-preset" class="${p}-select">
-                                        <option value="tenoke_dlc">Tenoke .ini</option>
-                                        <option value="goldberg_dlc">Goldberg .ini</option>
+                                        ${getOptions("dlc")}
                                     </select>
                                     <button id="${p}-btn-dlc-copy" class="${p}-btn ${p}-btn-secondary">Copy</button>
                                     <button id="${p}-btn-dlc-save" class="${p}-btn ${p}-btn-primary">Save</button>
@@ -592,11 +681,10 @@
                             <div id="${p}-tab-ini" class="${p}-tab">
                                 <div class="${p}-controls">
                                     <select id="${p}-ini-preset" class="${p}-select">
-                                        <option value="tenoke_ini">Tenoke Full Config</option>
-                                        <option value="goldberg_zip">Goldberg Full Package</option>
+                                        ${getOptions("ini")}
                                     </select>
-                                    <label class="${p}-checkbox-label">
-                                        <input type="checkbox" id="${p}-ini-include-icons" class="${p}-checkbox" checked> 
+                                    <label class="${p}-checkbox-label" id="${p}-ini-icons-label">
+                                        <input type="checkbox" id="${p}-ini-include-icons" class="${p}-checkbox">
                                         Include Icons
                                     </label>
                                     <button id="${p}-btn-ini-copy" class="${p}-btn ${p}-btn-secondary">Copy</button>
@@ -641,8 +729,33 @@
         ctx.updateFooter();
       });
 
+      // Icons Checkbox Toggle (Global State)
+      $(`#${p}-ini-include-icons`).on("change", function () {
+        ctx.iconState = $(this).is(":checked");
+      });
+
       // Presets Change
-      $(`select[id^="${p}-"]`).on("change", () => ctx.refreshAll());
+      $(`select[id^="${p}-"]`).on("change", (e) => {
+        const key = $(e.currentTarget).val();
+
+        // If switching Full Config, check icon support
+        if (e.currentTarget.id === `${p}-ini-preset`) {
+          const gen = Generators[key];
+          const $cb = $(`#${p}-ini-include-icons`);
+          const $lbl = $(`#${p}-ini-icons-label`);
+
+          if (gen && gen.supportsIcons === false) {
+            // Disable for RUNE, force unchecked visually
+            $cb.prop("checked", false).prop("disabled", true);
+            $lbl.addClass("disabled");
+          } else {
+            // Re-enable and restore user's previous state
+            $cb.prop("disabled", false).prop("checked", ctx.iconState);
+            $lbl.removeClass("disabled");
+          }
+        }
+        ctx.refreshAll();
+      });
 
       // Copy Buttons
       $(`button[id*="-copy"]`).on("click", (e) => {
@@ -672,9 +785,7 @@
 
       $(`#${p}-btn-dlc-save`).on("click", () => {
         const key = $(`#${p}-dlc-preset`).val();
-        const fname = key.includes("tenoke")
-          ? "tenoke_dlc.ini"
-          : "configs.app.ini";
+        const fname = Generators[key].filename || "dlc_list.ini";
         saveAs(
           new Blob([$(`#${p}-dlc-output`).val()], {
             type: "text/plain;charset=utf-8",
@@ -703,13 +814,20 @@
             withIcons,
             btnId
           );
-        } else {
+        } else if (key === "tenoke_ini") {
           Packager.downloadTenoke(
             { appId: ctx.appId, gameName: ctx.gameName },
             ctx.dlcs,
             ctx.achievements,
             withIcons,
             btnId
+          );
+        } else if (key === "rune_ini") {
+          // RUNE is text-only save
+          const content = $(`#${p}-ini-output`).val();
+          saveAs(
+            new Blob([content], { type: "text/plain;charset=utf-8" }),
+            Generators.rune_ini.filename
           );
         }
       });
