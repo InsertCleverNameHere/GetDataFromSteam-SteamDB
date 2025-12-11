@@ -515,7 +515,7 @@
     loader: null,
     uiBuilt: false,
     activeTab: "ach",
-    iconState: false, // Default unchecked
+    iconState: false,
 
     init() {
       this.appId = $(".scope-app[data-appid]").attr("data-appid");
@@ -729,7 +729,7 @@
         ctx.updateFooter();
       });
 
-      // Icons Checkbox Toggle (Global State)
+      // Icons Checkbox Toggle
       $(`#${p}-ini-include-icons`).on("change", function () {
         ctx.iconState = $(this).is(":checked");
       });
@@ -737,19 +737,15 @@
       // Presets Change
       $(`select[id^="${p}-"]`).on("change", (e) => {
         const key = $(e.currentTarget).val();
-
-        // If switching Full Config, check icon support
         if (e.currentTarget.id === `${p}-ini-preset`) {
           const gen = Generators[key];
           const $cb = $(`#${p}-ini-include-icons`);
           const $lbl = $(`#${p}-ini-icons-label`);
 
           if (gen && gen.supportsIcons === false) {
-            // Disable for RUNE, force unchecked visually
             $cb.prop("checked", false).prop("disabled", true);
             $lbl.addClass("disabled");
           } else {
-            // Re-enable and restore user's previous state
             $cb.prop("disabled", false).prop("checked", ctx.iconState);
             $lbl.removeClass("disabled");
           }
@@ -823,7 +819,6 @@
             btnId
           );
         } else if (key === "rune_ini") {
-          // RUNE is text-only save
           const content = $(`#${p}-ini-output`).val();
           saveAs(
             new Blob([content], { type: "text/plain;charset=utf-8" }),
