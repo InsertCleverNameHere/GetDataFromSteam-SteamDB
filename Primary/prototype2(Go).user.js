@@ -10,8 +10,8 @@
 // @homepageURL  https://github.com/InsertCleverNameHere/GetDataFromSteam-SteamDB
 // @source       github:InsertCleverNameHere/GetDataFromSteam-SteamDB
 // @supportURL   https://github.com/InsertCleverNameHere/GetDataFromSteam-SteamDB/issues
-// @downloadURL  https://github.com/InsertCleverNameHere/GetDataFromSteam-SteamDB/main/Primary/prototype2(Go).user.js
-// @updateURL    https://github.com/InsertCleverNameHere/GetDataFromSteam-SteamDB/main/Primary/prototype2(Go).meta.js
+// @downloadURL  https://github.com/InsertCleverNameHere/GetDataFromSteam-SteamDB/raw/main/Primary/prototype2(Go).user.js
+// @updateURL    https://github.com/InsertCleverNameHere/GetDataFromSteam-SteamDB/raw/main/Primary/prototype2(Go).meta.js
 // @require      https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js
 // @require      https://cdn.jsdelivr.net/npm/fflate@0.8.0/umd/index.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js
@@ -162,6 +162,12 @@
             opacity: 1;
             margin-right: 8px; /* Standard gap */
             visibility: visible;
+             transition: max-width 0.3s ease-in-out, 
+              opacity 0.3s ease-in-out,
+              margin 0.3s ease-in-out,
+              padding 0.3s ease-in-out,
+              border-width 0.3s ease-in-out,
+              visibility 0s linear 0.3s; /* ← Delays visibility until end */
         }
 
         /* Items that show: Smoothly expand from 0 width */
@@ -177,6 +183,12 @@
             white-space: nowrap;
             visibility: hidden;
             pointer-events: none;
+             transition: max-width 0.3s ease-in-out,
+              opacity 0.3s ease-in-out,
+              margin 0.3s ease-in-out,
+              padding 0.3s ease-in-out,
+              border-width 0.3s ease-in-out,
+              visibility 0s linear 0s; /* ← Immediate when showing */
         }
 
         /* The main button: Acts as "gas", fills empty space */
@@ -194,7 +206,7 @@
             margin: 0 !important;
             padding: 0 !important;
             border: 0 !important;
-            visibility: hidden;
+            visibility: visible; /* ← Now transitions smoothly */
             pointer-events: none;
         }
 
@@ -468,24 +480,33 @@
     toggleControls(containerSelector, isDownloading) {
       const p = CONFIG.PREFIX;
       const $container = $(containerSelector);
+      const $mainBtn = $container.find(`.${p}-btn-grow`);
 
-      // Toggle state class on the container
       if (isDownloading) {
+        // 1. Add class to trigger transitions FIRST
         $container.addClass(`${p}-downloading`);
-        $container
-          .find(`.${p}-btn-grow`)
-          .prop("disabled", true)
-          .text("Starting...");
-        // Inputs disabled handled via css pointer-events or js prop
-        $container
-          .find(`select, input, button[id*="copy"]`)
-          .prop("disabled", true);
+
+        // 2. Wait for next frame before DOM manipulations
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            // Double RAF for reliability
+            $mainBtn.prop("disabled", true).text("Starting...");
+            $container
+              .find(`select, input, button[id*="copy"]`)
+              .prop("disabled", true);
+          });
+        });
       } else {
-        $container.removeClass(`${p}-downloading`);
-        // Reset main button text happens in caller
+        // Allow transitions to complete before removing class
+        $mainBtn.prop("disabled", false);
         $container
           .find(`select, input, button[id*="copy"]`)
           .prop("disabled", false);
+
+        // Small delay to let any text updates settle
+        requestAnimationFrame(() => {
+          $container.removeClass(`${p}-downloading`);
+        });
       }
     },
 
@@ -586,7 +607,7 @@
             $statusBtn
               .text($statusBtn.data("original-text"))
               .prop("disabled", false);
-          }, 1000);
+          }, 350);
           this.state.active = false;
           return null;
         }
