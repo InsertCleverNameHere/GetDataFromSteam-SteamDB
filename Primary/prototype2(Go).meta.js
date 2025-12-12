@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         SteamDB Data Fork
 // @namespace    https://steamdb.info/
-// @version      0.2.5
+// @version      0.2.6
 // @description  Fetches Achievements/DLCs. Generates Tenoke, Goldberg, and RUNE configs.
 // @author       SCN
 // @match        https://steamdb.info/app/*
