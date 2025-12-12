@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         SteamDB Data Fork
 // @namespace    https://steamdb.info/
-// @version      0.2.4
+// @version      0.2.5
 // @description  Fetches Achievements/DLCs. Generates Tenoke, Goldberg, and RUNE configs.
 // @author       SCN
 // @match        https://steamdb.info/app/*
@@ -13,7 +13,7 @@
 // @downloadURL  https://github.com/InsertCleverNameHere/GetDataFromSteam-SteamDB/raw/main/Primary/prototype2(Go).user.js
 // @updateURL    https://github.com/InsertCleverNameHere/GetDataFromSteam-SteamDB/raw/main/Primary/prototype2(Go).meta.js
 // @require      https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js
-// @require      https://cdn.jsdelivr.net/npm/fflate@0.8.0/umd/index.js
+// @require      https://cdn.jsdelivr.net/npm/fflate@0.8.2/umd/index.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js
 // @grant        GM_addStyle
 // @grant        GM_xmlhttpRequest
@@ -22,6 +22,8 @@
 
 (function ($) {
   "use strict";
+
+  /* global jQuery, fflate, saveAs */
 
   // =================================================================
   // 1. CONSTANTS & CONFIG
@@ -68,8 +70,13 @@
         #${CONFIG.PREFIX}-overlay.active { display: flex; }
 
         #${CONFIG.PREFIX}-modal {
-            background: #16202d; width: 700px; max-height: 90vh;
-            display: flex; flex-direction: column;
+            background: #16202d;
+            width: 95%;
+            max-width: 700px;
+            height: 650px;        /* Fixed Height */
+            max-height: 90vh;     /* Mobile Safety */
+            display: flex;
+            flex-direction: column;
             border-radius: 6px; border: 1px solid #2a475e;
             font-family: "Motiva Sans", Arial, sans-serif; color: #c6d4df;
             box-shadow: 0 0 40px rgba(0,0,0,0.5);
@@ -78,12 +85,16 @@
         .${CONFIG.PREFIX}-header {
             padding: 15px 20px; background: #101822; border-bottom: 1px solid #2a475e;
             display: flex; justify-content: space-between; align-items: center;
+            flex-shrink: 0;
         }
         .${CONFIG.PREFIX}-header h3 { margin: 0; color: #fff; font-size: 18px; }
         .${CONFIG.PREFIX}-close { cursor: pointer; font-size: 24px; color: #67c1f5; }
         .${CONFIG.PREFIX}-close:hover { color: #fff; }
 
-        .${CONFIG.PREFIX}-nav { display: flex; background: #1b2838; border-bottom: 1px solid #000; }
+        .${CONFIG.PREFIX}-nav {
+            display: flex; background: #1b2838; border-bottom: 1px solid #000;
+            flex-shrink: 0;
+        }
         .${CONFIG.PREFIX}-nav-item {
             flex: 1; padding: 15px; text-align: center; cursor: pointer; color: #8f98a0;
             border-bottom: 3px solid transparent; font-weight: bold; font-size: 14px;
@@ -92,18 +103,43 @@
         .${CONFIG.PREFIX}-nav-item:hover { background: #233246; color: #fff; }
         .${CONFIG.PREFIX}-nav-item.active { border-bottom-color: #66c0f4; color: #fff; background: #233246; }
 
-        .${CONFIG.PREFIX}-body { padding: 20px; overflow-y: auto; flex-grow: 1; min-height: 400px; }
-        .${CONFIG.PREFIX}-tab { display: none; }
-        .${CONFIG.PREFIX}-tab.active { display: block; }
-
-        .${CONFIG.PREFIX}-controls {
-            display: flex; margin-bottom: 10px; align-items: center;
-            flex-wrap: nowrap; width: 100%; box-sizing: border-box;
+        /* Body becomes a flex column to fill remaining height */
+        .${CONFIG.PREFIX}-body {
+            padding: 20px;
+            overflow: hidden;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
         }
 
-        /* Direct children spacing (replaces gap to allow full collapse) */
-        .${CONFIG.PREFIX}-controls > * { margin-right: 8px; }
-        .${CONFIG.PREFIX}-controls > *:last-child { margin-right: 0; }
+        .${CONFIG.PREFIX}-tab {
+            display: none;
+            flex-direction: column;
+            flex-grow: 1;
+            height: 100%;
+        }
+        .${CONFIG.PREFIX}-tab.active { display: flex; }
+
+        /* Standard Controls Row */
+        .${CONFIG.PREFIX}-controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+            width: 100%;
+            flex-shrink: 0;
+            min-height: 36px;
+        }
+
+        /* Grouping container for left side inputs */
+        .${CONFIG.PREFIX}-input-group {
+            flex: 1;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            min-width: 0;
+        }
 
         .${CONFIG.PREFIX}-select {
             flex-grow: 1; height: 36px; padding: 0 35px 0 10px;
@@ -128,8 +164,20 @@
             padding: 0 16px; height: 36px; line-height: 36px;
             border: none; border-radius: 3px; cursor: pointer; font-weight: bold; color: #fff;
             transition: background 0.2s; position: relative; overflow: hidden; font-size: 13px;
-            white-space: nowrap;
+            min-width: 80px; white-space: nowrap;
         }
+
+        .${CONFIG.PREFIX}-btn-fixed {
+            width: 100px;
+            text-align: center;
+            justify-content: center;
+        }
+
+        /* Specific override for the Icons button to make it fit nicely in the top row */
+        #${CONFIG.PREFIX}-btn-img {
+            min-width: 60px;
+        }
+
         .${CONFIG.PREFIX}-btn-primary { background: #66c0f4; color: #000; }
         .${CONFIG.PREFIX}-btn-primary:hover { background: #fff; }
         .${CONFIG.PREFIX}-btn-secondary { background: #3a4b5d; }
@@ -143,81 +191,105 @@
         .${CONFIG.PREFIX}-btn.cancel-mode { background: #c0392b; color: #fff; }
         .${CONFIG.PREFIX}-btn.cancel-mode:hover { background: #e74c3c; }
 
+        /* Textarea grows to fill space */
         .${CONFIG.PREFIX}-textarea {
-            width: 100%; height: 350px; background: #0d121a; color: #a6b2be;
+            width: 100%;
+            height: auto;
+            flex-grow: 1;
+            background: #0d121a; color: #a6b2be;
             border: 1px solid #444; padding: 10px; box-sizing: border-box;
-            font-family: Consolas, monospace; font-size: 12px; resize: vertical; white-space: pre;
+            font-family: Consolas, monospace; font-size: 12px;
+            resize: none;
+            white-space: pre;
         }
 
-        .${CONFIG.PREFIX}-footer { margin-top: 10px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
+        .${CONFIG.PREFIX}-footer {
+            margin-top: 10px;
+            display: flex; justify-content: space-between; align-items: center; font-size: 12px;
+            flex-shrink: 0;
+        }
         #${CONFIG.PREFIX}-status { color: #8f98a0; text-align: right; }
         #${CONFIG.PREFIX}-footer-stats { color: #66c0f4; font-weight: bold; font-size: 12px; }
 
-        /* --- Transitions for Download UI --- */
+        /* --- STACKED GRID FOR SMOOTH CROSSFADE --- */
+        .${CONFIG.PREFIX}-stack-container {
+            display: grid;
+            grid-template-columns: 1fr;
+            grid-template-rows: 1fr;
+            align-items: center;
+            margin-bottom: 15px;
+            flex-shrink: 0;
+            min-height: 36px;
+        }
 
-        /* Items that hide: Smoothly collapse to 0 width/margin */
-        .${CONFIG.PREFIX}-trans-hide {
-            transition: all 0.3s ease-in-out;
-            max-width: 300px;
+        .${CONFIG.PREFIX}-controls-setup,
+        .${CONFIG.PREFIX}-controls-progress {
+            grid-area: 1 / 1;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            transition: opacity 0.5s ease, transform 0.5s ease, visibility 0.5s;
+        }
+
+        /* Visible State */
+        .${CONFIG.PREFIX}-visible {
             opacity: 1;
-            margin-right: 8px; /* Standard gap */
-            visibility: visible;
-             transition: max-width 0.3s ease-in-out, 
-              opacity 0.3s ease-in-out,
-              margin 0.3s ease-in-out,
-              padding 0.3s ease-in-out,
-              border-width 0.3s ease-in-out,
-              visibility 0s linear 0.3s; /* ← Delays visibility until end */
-        }
-
-        /* Items that show: Smoothly expand from 0 width */
-        .${CONFIG.PREFIX}-trans-show {
-            transition: all 0.3s ease-in-out;
-            max-width: 0;
-            opacity: 0;
-            overflow: hidden;
-            padding-left: 0 !important;
-            padding-right: 0 !important;
-            margin: 0 !important;
-            border-width: 0 !important;
-            white-space: nowrap;
-            visibility: hidden;
-            pointer-events: none;
-             transition: max-width 0.3s ease-in-out,
-              opacity 0.3s ease-in-out,
-              margin 0.3s ease-in-out,
-              padding 0.3s ease-in-out,
-              border-width 0.3s ease-in-out,
-              visibility 0s linear 0s; /* ← Immediate when showing */
-        }
-
-        /* The main button: Acts as "gas", fills empty space */
-        .${CONFIG.PREFIX}-btn-grow {
-            transition: flex-grow 0.3s ease-in-out, background 0.3s ease;
-            flex-grow: 1; /* Always flexible */
-        }
-
-        /* --- Active Downloading State (.sdb-fork-downloading) --- */
-
-        /* Collapse hidden items completely */
-        .${CONFIG.PREFIX}-downloading .${CONFIG.PREFIX}-trans-hide {
-            max-width: 0;
-            opacity: 0;
-            margin: 0 !important;
-            padding: 0 !important;
-            border: 0 !important;
-            visibility: visible; /* ← Now transitions smoothly */
-            pointer-events: none;
-        }
-
-        /* Expand hidden buttons */
-        .${CONFIG.PREFIX}-downloading .${CONFIG.PREFIX}-trans-show {
-            max-width: 120px;
-            opacity: 1;
-            padding: 0 16px !important;
-            margin-left: 8px !important; /* Restore gap */
+            transform: scale(1);
             visibility: visible;
             pointer-events: auto;
+            z-index: 2;
+        }
+
+        /* Hidden State */
+        .${CONFIG.PREFIX}-hidden {
+            opacity: 0;
+            transform: scale(0.98);
+            visibility: hidden;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* --- Progress Bar Styles --- */
+        .${CONFIG.PREFIX}-progress-info {
+            flex: 1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #0d121a;
+            padding: 0 12px;
+            height: 36px;
+            border-radius: 3px;
+            border: 1px solid #444;
+            margin-right: 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .${CONFIG.PREFIX}-progress-fill {
+            position: absolute;
+            top: 0; left: 0; bottom: 0;
+            background: rgba(102, 192, 244, 0.2);
+            width: 0%;
+            transition: width 0.5s ease;
+            z-index: 0;
+        }
+
+        .${CONFIG.PREFIX}-progress-percent {
+            color: #ffffff;
+            font-weight: bold;
+            font-size: 14px;
+            font-family: "Motiva Sans", Arial, sans-serif;
+            font-variant-numeric: tabular-nums;
+            text-shadow: 0 1px 4px rgba(0,0,0,1);
+            z-index: 1;
+        }
+
+        .${CONFIG.PREFIX}-progress-text {
+            color: #66c0f4;
+            font-weight: bold;
+            font-size: 13px;
+            z-index: 1;
         }
     `);
 
@@ -228,7 +300,6 @@
     fetchBuffer: (url) => {
       return new Promise((resolve) => {
         if (!url) return resolve(null);
-        // GM_XHR only (No Console Spam)
         GM_xmlhttpRequest({
           method: "GET",
           url: url,
@@ -473,44 +544,25 @@
   // 6. PACKAGER (DOWNLOAD & ZIP)
   // =================================================================
   const Packager = {
-    // State tracking
     state: { active: false, stop: false, paused: false, resumeResolver: null },
 
-    // Helper: Toggle UI Controls with Smooth CSS Transitions
-    toggleControls(containerSelector, isDownloading) {
+    toggleControls(tabPrefix, isDownloading) {
       const p = CONFIG.PREFIX;
-      const $container = $(containerSelector);
-      const $mainBtn = $container.find(`.${p}-btn-grow`);
+      const setupId = `${p}-${tabPrefix}-controls-setup`;
+      const progressId = `${p}-${tabPrefix}-controls-progress`;
+
+      const $setup = $(`#${setupId}`);
+      const $progress = $(`#${progressId}`);
 
       if (isDownloading) {
-        // 1. Add class to trigger transitions FIRST
-        $container.addClass(`${p}-downloading`);
-
-        // 2. Wait for next frame before DOM manipulations
-        requestAnimationFrame(() => {
-          requestAnimationFrame(() => {
-            // Double RAF for reliability
-            $mainBtn.prop("disabled", true).text("Starting...");
-            $container
-              .find(`select, input, button[id*="copy"]`)
-              .prop("disabled", true);
-          });
-        });
+        $setup.removeClass(`${p}-visible`).addClass(`${p}-hidden`);
+        $progress.removeClass(`${p}-hidden`).addClass(`${p}-visible`);
       } else {
-        // Allow transitions to complete before removing class
-        $mainBtn.prop("disabled", false);
-        $container
-          .find(`select, input, button[id*="copy"]`)
-          .prop("disabled", false);
-
-        // Small delay to let any text updates settle
-        requestAnimationFrame(() => {
-          $container.removeClass(`${p}-downloading`);
-        });
+        $progress.removeClass(`${p}-visible`).addClass(`${p}-hidden`);
+        $setup.removeClass(`${p}-hidden`).addClass(`${p}-visible`);
       }
     },
 
-    // Action: Cancel
     cancel() {
       if (this.state.active) {
         this.state.stop = true;
@@ -520,7 +572,6 @@
       }
     },
 
-    // Action: Toggle Pause
     togglePause(btnSelector) {
       if (this.state.paused) {
         this.state.paused = false;
@@ -541,7 +592,8 @@
       }
     },
 
-    async fetchImagesWithProgress(achs, containerSelector, btnSelector) {
+    async fetchImagesWithProgress(achs, tabPrefix) {
+      const p = CONFIG.PREFIX;
       this.state = {
         active: true,
         stop: false,
@@ -549,30 +601,50 @@
         resumeResolver: null,
       };
 
-      // Update UI to Download Mode (Transitions)
-      this.toggleControls(containerSelector, true);
+      // UI: Switch to Progress
+      this.toggleControls(tabPrefix, true);
 
       const tasks = [];
       achs.forEach((ach) => {
-        if (ach.iconUrl && ach.iconBase)
+        if (ach.iconUrl && ach.iconBase) {
           tasks.push({ url: ach.iconUrl, name: ach.iconBase });
-        if (ach.iconGrayUrl && ach.iconGrayBase)
+        }
+        if (ach.iconGrayUrl && ach.iconGrayBase) {
           tasks.push({ url: ach.iconGrayUrl, name: ach.iconGrayBase });
+        }
       });
 
       const total = tasks.length;
       let completed = 0;
       const downloadedData = {};
-      const $statusBtn = $(btnSelector);
+
+      const $progressText = $(`#${p}-${tabPrefix}-progress-text`);
+      const $progressPercent = $(`#${p}-${tabPrefix}-progress-percent`);
+      const $progressFill = $(`#${p}-${tabPrefix}-progress-fill`);
+
+      // Reset State
+      $progressFill.css("width", "0%");
+      $(`#${p}-btn-${tabPrefix}-pause`)
+        .text("Pause")
+        .removeClass("resume-mode")
+        .addClass("pause-mode");
 
       const updateProgress = (pct) => {
         if (this.state.stop) return;
-        const p = Math.floor(pct * 100);
-        $statusBtn.text(`Downloading... ${p}%`);
-        $statusBtn.css(
-          "background",
-          `linear-gradient(90deg, #66c0f4 ${p}%, #3a4b5d ${p}%)`
-        );
+        const percent = Math.floor(pct * 100);
+        $progressText.text("Downloading...");
+        $progressPercent.text(`${percent}%`);
+        $progressFill.css("width", `${percent}%`);
+      };
+
+      const processTask = async (task) => {
+        const buf = await Network.fetchBuffer(task.url);
+        if (buf) downloadedData[task.name] = buf;
+        completed++;
+
+        if (!this.state.paused && !this.state.stop) {
+          updateProgress(completed / total);
+        }
       };
 
       try {
@@ -580,48 +652,39 @@
           if (this.state.stop) throw new Error("CANCELLED");
 
           if (this.state.paused) {
-            $statusBtn.text(
-              `Paused (${Math.floor((completed / total) * 100)}%)`
-            );
+            $progressText.text("Paused");
             await new Promise((res) => (this.state.resumeResolver = res));
             if (this.state.stop) throw new Error("CANCELLED");
           }
 
           const batch = tasks.slice(i, i + CONFIG.BATCH_SIZE);
-          await Promise.all(
-            batch.map(async (task) => {
-              const buf = await Network.fetchBuffer(task.url);
-              if (buf) downloadedData[task.name] = buf;
-              completed++;
-            })
-          );
+          // Pass the pre-defined function
+          await Promise.all(batch.map(processTask));
 
-          updateProgress(completed / total);
           i += CONFIG.BATCH_SIZE;
         }
       } catch (e) {
         if (e.message === "CANCELLED") {
-          $statusBtn.text("Cancelled").css("background", "");
+          $progressText.text("Cancelled");
           setTimeout(() => {
-            this.toggleControls(containerSelector, false);
-            $statusBtn
-              .text($statusBtn.data("original-text"))
-              .prop("disabled", false);
-          }, 350);
+            this.toggleControls(tabPrefix, false);
+          }, 800);
           this.state.active = false;
           return null;
         }
       }
 
-      $statusBtn.text("Zipping...").css("background", "");
+      $progressText.text("Creating zip...");
+      $progressPercent.text("100%");
+      $progressFill.css("width", "100%");
+
       return downloadedData;
     },
 
     async downloadTenoke(appInfo, dlcs, achs, withIcons, btnSelector) {
-      const container = `#${CONFIG.PREFIX}-tab-ini .${CONFIG.PREFIX}-controls`;
+      const tabPrefix = "ini";
       const iniContent = Generators.tenoke_ini.render(appInfo, dlcs, achs);
 
-      // If icons are NOT requested, simply save the text file directly.
       if (!withIcons || achs.length === 0) {
         saveAs(
           new Blob([iniContent], { type: "text/plain;charset=utf-8" }),
@@ -630,32 +693,29 @@
         return;
       }
 
+      const icons = await this.fetchImagesWithProgress(achs, tabPrefix);
+      if (!icons) return;
+
       const zip = {};
       zip["tenoke.ini"] = new TextEncoder().encode(iniContent);
 
-      if (withIcons && achs.length > 0) {
-        // Save original text to restore after download
-        $(btnSelector).data("original-text", "Download");
-        const icons = await this.fetchImagesWithProgress(
-          achs,
-          container,
-          btnSelector
-        );
-        if (!icons) return;
-
-        const innerZipData = {};
-        for (const [name, buf] of Object.entries(icons))
-          innerZipData[name] = buf;
-
-        zip["icons.zip"] = await new Promise((res) =>
-          fflate.zip(innerZipData, { level: 0 }, (err, data) => res(data))
-        );
+      const innerZipData = {};
+      for (const [name, buf] of Object.entries(icons)) {
+        innerZipData[name] = buf;
       }
-      this.finalizeZip(zip, "tenoke_release.zip", container, btnSelector);
+
+      zip["icons.zip"] = await new Promise((res) =>
+        fflate.zip(innerZipData, { level: 0 }, (err, data) => res(data))
+      );
+
+      this.finalizeZip(zip, "tenoke_release.zip", tabPrefix);
     },
 
     async downloadGoldberg(appInfo, dlcs, achs, withIcons, btnSelector) {
-      const container = `#${CONFIG.PREFIX}-tab-ini .${CONFIG.PREFIX}-controls`;
+      const tabPrefix = "ini";
+      const icons = await this.fetchImagesWithProgress(achs, tabPrefix);
+      if (!icons) return;
+
       const zip = {};
       zip["steam_settings/steam_appid.txt"] = new TextEncoder().encode(
         appInfo.appId
@@ -671,58 +731,50 @@
         const ini = Generators.goldberg_dlc.render(dlcs);
         zip["steam_settings/configs.app.ini"] = new TextEncoder().encode(ini);
       }
-      if (withIcons && achs.length > 0) {
-        $(btnSelector).data("original-text", "Download");
-        const icons = await this.fetchImagesWithProgress(
-          achs,
-          container,
-          btnSelector
-        );
-        if (!icons) return;
 
-        for (const [name, buf] of Object.entries(icons)) {
-          zip[`steam_settings/img/${name}`] = buf;
-        }
+      for (const [name, buf] of Object.entries(icons)) {
+        zip[`steam_settings/img/${name}`] = buf;
       }
-      this.finalizeZip(zip, "steam_settings.zip", container, btnSelector);
+
+      this.finalizeZip(zip, "steam_settings.zip", tabPrefix);
     },
 
-    async downloadIconsOnly(achs, presetKey, btnSelector) {
-      const container = `#${CONFIG.PREFIX}-ach-image-row`;
-      $(btnSelector).data("original-text", "Download Icons (Zip)");
-      const icons = await this.fetchImagesWithProgress(
-        achs,
-        container,
-        btnSelector
-      );
+    async downloadIconsOnly(achs, presetKey) {
+      const tabPrefix = "ach";
+      const icons = await this.fetchImagesWithProgress(achs, tabPrefix);
       if (!icons) return;
 
       const preset = Generators[presetKey];
       const zip = {};
 
       achs.forEach((ach) => {
-        if (icons[ach.iconBase])
+        if (icons[ach.iconBase]) {
           zip[preset.getFileName(ach, "main")] = icons[ach.iconBase];
-        if (icons[ach.iconGrayBase])
+        }
+        if (icons[ach.iconGrayBase]) {
           zip[preset.getFileName(ach, "gray")] = icons[ach.iconGrayBase];
+        }
       });
 
-      this.finalizeZip(zip, "icons.zip", container, btnSelector);
+      this.finalizeZip(zip, "icons.zip", tabPrefix);
     },
 
-    finalizeZip(zipData, filename, containerSelector, btnSelector) {
+    finalizeZip(zipData, filename, tabPrefix) {
       fflate.zip(zipData, { level: 0, mem: 8 }, (err, data) => {
-        if (err) alert("Zip error: " + err);
-        else saveAs(new Blob([data], { type: "application/zip" }), filename);
+        if (err) {
+          alert("Zip error: " + err);
+          this.toggleControls(tabPrefix, false);
+          this.state.active = false;
+          return;
+        }
 
-        // Reset UI
-        this.toggleControls(containerSelector, false);
-        const $btn = $(btnSelector);
-        $btn
-          .text($btn.data("original-text"))
-          .prop("disabled", false)
-          .css("background", "");
-        this.state.active = false;
+        saveAs(new Blob([data], { type: "application/zip" }), filename);
+
+        // Small delay before switching back to show 100% state
+        setTimeout(() => {
+          this.toggleControls(tabPrefix, false);
+          this.state.active = false;
+        }, 500);
       });
     },
   };
@@ -761,9 +813,12 @@
         ),
       ]);
 
-      if (achRes.status === "fulfilled")
+      if (achRes.status === "fulfilled") {
         this.achievements = Parser.achievements(achRes.value, this.appId);
-      if (dlcRes.status === "fulfilled") this.dlcs = Parser.dlcs(dlcRes.value);
+      }
+      if (dlcRes.status === "fulfilled") {
+        this.dlcs = Parser.dlcs(dlcRes.value);
+      }
 
       return { achCount: this.achievements.length, dlcCount: this.dlcs.length };
     },
@@ -877,20 +932,31 @@
                         <div class="${p}-body">
                             <!-- Achievements -->
                             <div id="${p}-tab-ach" class="${p}-tab active">
-                                <div class="${p}-controls">
-                                    <select id="${p}-ach-preset" class="${p}-select">
-                                        ${getOptions("ach")}
-                                    </select>
-                                    <button id="${p}-btn-ach-copy" class="${p}-btn ${p}-btn-secondary">Copy</button>
-                                    <button id="${p}-btn-ach-save" class="${p}-btn ${p}-btn-primary">Save</button>
+                                <div id="${p}-ach-container" class="${p}-stack-container">
+                                    <!-- Setup State -->
+                                    <div id="${p}-ach-controls-setup" class="${p}-controls-setup ${p}-visible">
+                                        <select id="${p}-ach-preset" class="${p}-select" style="flex:1">
+                                            ${getOptions("ach")}
+                                        </select>
+                                        <button id="${p}-btn-ach-copy" class="${p}-btn ${p}-btn-secondary ${p}-btn-fixed">Copy</button>
+                                        <button id="${p}-btn-ach-save" class="${p}-btn ${p}-btn-primary ${p}-btn-fixed">Save</button>
+                                        <button id="${p}-btn-img" class="${p}-btn ${p}-btn-secondary">Download Icons</button>
+                                    </div>
+
+                                    <!-- Progress State -->
+                                    <div id="${p}-ach-controls-progress" class="${p}-controls-progress ${p}-hidden">
+                                        <div class="${p}-progress-info">
+                                            <span id="${p}-ach-progress-text" class="${p}-progress-text">Starting...</span>
+                                            <span id="${p}-ach-progress-percent" class="${p}-progress-percent">0%</span>
+                                            <div id="${p}-ach-progress-fill" class="${p}-progress-fill"></div>
+                                        </div>
+                                        <button id="${p}-btn-ach-pause" class="${p}-btn pause-mode ${p}-btn-fixed">Pause</button>
+                                        <button id="${p}-btn-ach-cancel" class="${p}-btn cancel-mode ${p}-btn-fixed">Cancel</button>
+                                    </div>
                                 </div>
                                 <textarea id="${p}-ach-output" class="${p}-textarea" readonly>Loading...</textarea>
-                                <div id="${p}-ach-image-row" class="${p}-controls" style="margin-top:15px; display:flex;">
-                                    <button id="${p}-btn-img" class="${p}-btn ${p}-btn-secondary ${p}-btn-grow" style="flex-grow:1">Download Icons (Zip)</button>
-                                    <button id="${p}-btn-ach-pause" class="${p}-btn pause-mode ${p}-trans-show">Pause</button>
-                                    <button id="${p}-btn-ach-cancel" class="${p}-btn cancel-mode ${p}-trans-show">Cancel</button>
-                                </div>
                             </div>
+
                             <!-- DLC -->
                             <div id="${p}-tab-dlc" class="${p}-tab">
                                 <div class="${p}-controls">
@@ -902,23 +968,39 @@
                                 </div>
                                 <textarea id="${p}-dlc-output" class="${p}-textarea" readonly>Loading...</textarea>
                             </div>
+
                             <!-- Config -->
                             <div id="${p}-tab-ini" class="${p}-tab">
-                                <div class="${p}-controls">
-                                    <select id="${p}-ini-preset" class="${p}-select ${p}-trans-hide">
-                                        ${getOptions("ini")}
-                                    </select>
-                                    <label class="${p}-checkbox-label ${p}-trans-hide" id="${p}-ini-icons-label">
-                                        <input type="checkbox" id="${p}-ini-include-icons" class="${p}-checkbox">
-                                        Include Icons
-                                    </label>
-                                    <button id="${p}-btn-ini-copy" class="${p}-btn ${p}-btn-secondary ${p}-trans-hide">Copy</button>
-                                    <button id="${p}-btn-ini-save" class="${p}-btn ${p}-btn-primary ${p}-btn-grow">Download</button>
-                                    <button id="${p}-btn-ini-pause" class="${p}-btn pause-mode ${p}-trans-show">Pause</button>
-                                    <button id="${p}-btn-ini-cancel" class="${p}-btn cancel-mode ${p}-trans-show">Cancel</button>
+                                <div id="${p}-ini-container" class="${p}-stack-container">
+                                    <!-- Setup State -->
+                                    <div id="${p}-ini-controls-setup" class="${p}-controls-setup ${p}-visible">
+                                        <div class="${p}-input-group">
+                                            <select id="${p}-ini-preset" class="${p}-select" style="width:100%">
+                                                ${getOptions("ini")}
+                                            </select>
+                                            <label class="${p}-checkbox-label" id="${p}-ini-icons-label">
+                                                <input type="checkbox" id="${p}-ini-include-icons" class="${p}-checkbox">
+                                                Include Icons
+                                            </label>
+                                        </div>
+                                        <button id="${p}-btn-ini-copy" class="${p}-btn ${p}-btn-secondary ${p}-btn-fixed">Copy</button>
+                                        <button id="${p}-btn-ini-save" class="${p}-btn ${p}-btn-primary ${p}-btn-fixed">Download</button>
+                                    </div>
+
+                                    <!-- Progress State -->
+                                    <div id="${p}-ini-controls-progress" class="${p}-controls-progress ${p}-hidden">
+                                        <div class="${p}-progress-info">
+                                            <span id="${p}-ini-progress-text" class="${p}-progress-text">Starting...</span>
+                                            <span id="${p}-ini-progress-percent" class="${p}-progress-percent">0%</span>
+                                            <div id="${p}-ini-progress-fill" class="${p}-progress-fill"></div>
+                                        </div>
+                                        <button id="${p}-btn-ini-pause" class="${p}-btn pause-mode ${p}-btn-fixed">Pause</button>
+                                        <button id="${p}-btn-ini-cancel" class="${p}-btn cancel-mode ${p}-btn-fixed">Cancel</button>
+                                    </div>
                                 </div>
                                 <textarea id="${p}-ini-output" class="${p}-textarea" readonly>Loading...</textarea>
                             </div>
+
                             <!-- Footer -->
                             <div class="${p}-footer">
                                 <div id="${p}-footer-stats"></div>
@@ -1022,14 +1104,11 @@
       });
 
       // Download Actions
-
-      // 1. Achievements Tab Image Download
       $(`#${p}-btn-img`).on("click", () => {
         const key = $(`#${p}-ach-preset`).val();
-        Packager.downloadIconsOnly(ctx.achievements, key, `#${p}-btn-img`);
+        Packager.downloadIconsOnly(ctx.achievements, key);
       });
 
-      // 2. Full Config Tab Download
       $(`#${p}-btn-ini-save`).on("click", () => {
         const key = $(`#${p}-ini-preset`).val();
         const withIcons = $(`#${p}-ini-include-icons`).is(":checked");
@@ -1061,12 +1140,11 @@
       });
 
       // Global Pause/Cancel Handlers
-      // Using wildcards to catch both ach and ini buttons
-      $(`button[id*="-pause"]`).on("click", function (e) {
+      $(`#${p}-btn-ach-pause, #${p}-btn-ini-pause`).on("click", function (e) {
         Packager.togglePause(this);
       });
 
-      $(`button[id*="-cancel"]`).on("click", function () {
+      $(`#${p}-btn-ach-cancel, #${p}-btn-ini-cancel`).on("click", function () {
         Packager.cancel();
       });
     },
