@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         SteamDB Data Fork
 // @namespace    https://steamdb.info/
-// @version      0.2.5
+// @version      0.2.6
 // @description  Fetches Achievements/DLCs. Generates Tenoke, Goldberg, and RUNE configs.
 // @author       SCN
 // @match        https://steamdb.info/app/*
@@ -105,41 +105,17 @@
 
         /* Body becomes a flex column to fill remaining height */
         .${CONFIG.PREFIX}-body {
-            padding: 20px;
-            overflow: hidden;
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
+            padding: 20px; overflow: hidden; flex-grow: 1; display: flex; flex-direction: column;
         }
 
-        .${CONFIG.PREFIX}-tab {
-            display: none;
-            flex-direction: column;
-            flex-grow: 1;
-            height: 100%;
-        }
+        .${CONFIG.PREFIX}-tab { display: none; flex-direction: column; flex-grow: 1; height: 100%; }
         .${CONFIG.PREFIX}-tab.active { display: flex; }
 
         /* Standard Controls Row */
         .${CONFIG.PREFIX}-controls {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 15px;
-            align-items: center;
-            flex-wrap: wrap;
-            width: 100%;
-            flex-shrink: 0;
-            min-height: 36px;
+            display: flex; gap: 10px; margin-bottom: 15px; align-items: center; flex-wrap: wrap; width: 100%; flex-shrink: 0; min-height: 36px;
         }
-
-        /* Grouping container for left side inputs */
-        .${CONFIG.PREFIX}-input-group {
-            flex: 1;
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            min-width: 0;
-        }
+        .${CONFIG.PREFIX}-input-group { flex: 1; display: flex; gap: 10px; align-items: center; min-width: 0; }
 
         .${CONFIG.PREFIX}-select {
             flex-grow: 1; height: 36px; padding: 0 35px 0 10px;
@@ -152,8 +128,7 @@
         .${CONFIG.PREFIX}-select:disabled { opacity: 0.5; cursor: not-allowed; }
 
         .${CONFIG.PREFIX}-checkbox-label {
-            display: flex; align-items: center; gap: 5px; cursor: pointer;
-            font-size: 13px; user-select: none; color: #8f98a0; white-space: nowrap;
+            display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 13px; user-select: none; color: #8f98a0; white-space: nowrap;
         }
         .${CONFIG.PREFIX}-checkbox-label:hover { color: #fff; }
         .${CONFIG.PREFIX}-checkbox-label.disabled { opacity: 0.5; cursor: not-allowed; }
@@ -161,22 +136,11 @@
         .${CONFIG.PREFIX}-checkbox:disabled { cursor: not-allowed; }
 
         .${CONFIG.PREFIX}-btn {
-            padding: 0 16px; height: 36px; line-height: 36px;
-            border: none; border-radius: 3px; cursor: pointer; font-weight: bold; color: #fff;
-            transition: background 0.2s; position: relative; overflow: hidden; font-size: 13px;
-            min-width: 80px; white-space: nowrap;
+            padding: 0 16px; height: 36px; line-height: 36px; border: none; border-radius: 3px; cursor: pointer; font-weight: bold; color: #fff;
+            transition: background 0.2s; position: relative; overflow: hidden; font-size: 13px; min-width: 80px; white-space: nowrap;
         }
-
-        .${CONFIG.PREFIX}-btn-fixed {
-            width: 100px;
-            text-align: center;
-            justify-content: center;
-        }
-
-        /* Specific override for the Icons button to make it fit nicely in the top row */
-        #${CONFIG.PREFIX}-btn-img {
-            min-width: 60px;
-        }
+        .${CONFIG.PREFIX}-btn-fixed { width: 100px; text-align: center; justify-content: center; }
+        #${CONFIG.PREFIX}-btn-img { min-width: 60px; }
 
         .${CONFIG.PREFIX}-btn-primary { background: #66c0f4; color: #000; }
         .${CONFIG.PREFIX}-btn-primary:hover { background: #fff; }
@@ -191,106 +155,38 @@
         .${CONFIG.PREFIX}-btn.cancel-mode { background: #c0392b; color: #fff; }
         .${CONFIG.PREFIX}-btn.cancel-mode:hover { background: #e74c3c; }
 
-        /* Textarea grows to fill space */
         .${CONFIG.PREFIX}-textarea {
-            width: 100%;
-            height: auto;
-            flex-grow: 1;
-            background: #0d121a; color: #a6b2be;
-            border: 1px solid #444; padding: 10px; box-sizing: border-box;
-            font-family: Consolas, monospace; font-size: 12px;
-            resize: none;
-            white-space: pre;
+            width: 100%; height: auto; flex-grow: 1; background: #0d121a; color: #a6b2be; border: 1px solid #444; padding: 10px; box-sizing: border-box;
+            font-family: Consolas, monospace; font-size: 12px; resize: none; white-space: pre;
         }
 
         .${CONFIG.PREFIX}-footer {
-            margin-top: 10px;
-            display: flex; justify-content: space-between; align-items: center; font-size: 12px;
-            flex-shrink: 0;
+            margin-top: 10px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; flex-shrink: 0;
         }
         #${CONFIG.PREFIX}-status { color: #8f98a0; text-align: right; }
         #${CONFIG.PREFIX}-footer-stats { color: #66c0f4; font-weight: bold; font-size: 12px; }
 
         /* --- STACKED GRID FOR SMOOTH CROSSFADE --- */
         .${CONFIG.PREFIX}-stack-container {
-            display: grid;
-            grid-template-columns: 1fr;
-            grid-template-rows: 1fr;
-            align-items: center;
-            margin-bottom: 15px;
-            flex-shrink: 0;
-            min-height: 36px;
+            display: grid; grid-template-columns: 1fr; grid-template-rows: 1fr; align-items: center; margin-bottom: 15px; flex-shrink: 0; min-height: 36px;
         }
-
-        .${CONFIG.PREFIX}-controls-setup,
-        .${CONFIG.PREFIX}-controls-progress {
-            grid-area: 1 / 1;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            width: 100%;
-            transition: opacity 0.5s ease, transform 0.5s ease, visibility 0.5s;
+        .${CONFIG.PREFIX}-controls-setup, .${CONFIG.PREFIX}-controls-progress {
+            grid-area: 1 / 1; display: flex; align-items: center; gap: 10px; width: 100%; transition: opacity 0.5s ease, transform 0.5s ease, visibility 0.5s;
         }
-
-        /* Visible State */
-        .${CONFIG.PREFIX}-visible {
-            opacity: 1;
-            transform: scale(1);
-            visibility: visible;
-            pointer-events: auto;
-            z-index: 2;
-        }
-
-        /* Hidden State */
-        .${CONFIG.PREFIX}-hidden {
-            opacity: 0;
-            transform: scale(0.98);
-            visibility: hidden;
-            pointer-events: none;
-            z-index: 1;
-        }
+        .${CONFIG.PREFIX}-visible { opacity: 1; transform: scale(1); visibility: visible; pointer-events: auto; z-index: 2; }
+        .${CONFIG.PREFIX}-hidden { opacity: 0; transform: scale(0.98); visibility: hidden; pointer-events: none; z-index: 1; }
 
         /* --- Progress Bar Styles --- */
         .${CONFIG.PREFIX}-progress-info {
-            flex: 1;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: #0d121a;
-            padding: 0 12px;
-            height: 36px;
-            border-radius: 3px;
-            border: 1px solid #444;
-            margin-right: 0;
-            position: relative;
-            overflow: hidden;
+            flex: 1; display: flex; justify-content: space-between; align-items: center; background: #0d121a; padding: 0 12px; height: 36px; border-radius: 3px; border: 1px solid #444; margin-right: 0; position: relative; overflow: hidden;
         }
-
         .${CONFIG.PREFIX}-progress-fill {
-            position: absolute;
-            top: 0; left: 0; bottom: 0;
-            background: rgba(102, 192, 244, 0.2);
-            width: 0%;
-            transition: width 0.5s ease;
-            z-index: 0;
+            position: absolute; top: 0; left: 0; bottom: 0; background: rgba(102, 192, 244, 0.2); width: 0%; transition: width 0.5s ease; z-index: 0;
         }
-
         .${CONFIG.PREFIX}-progress-percent {
-            color: #ffffff;
-            font-weight: bold;
-            font-size: 14px;
-            font-family: "Motiva Sans", Arial, sans-serif;
-            font-variant-numeric: tabular-nums;
-            text-shadow: 0 1px 4px rgba(0,0,0,1);
-            z-index: 1;
+            color: #ffffff; font-weight: bold; font-size: 14px; font-family: "Motiva Sans", Arial, sans-serif; font-variant-numeric: tabular-nums; text-shadow: 0 1px 4px rgba(0,0,0,1); z-index: 1;
         }
-
-        .${CONFIG.PREFIX}-progress-text {
-            color: #66c0f4;
-            font-weight: bold;
-            font-size: 13px;
-            z-index: 1;
-        }
+        .${CONFIG.PREFIX}-progress-text { color: #66c0f4; font-weight: bold; font-size: 13px; z-index: 1; }
     `);
 
   // =================================================================
@@ -406,6 +302,107 @@
       });
       return list;
     },
+
+    // ADVANCED ITEM PARSER
+    items(htmlString, appId) {
+      const safeHtml = this.cleanHtml(htmlString);
+      const doc = new DOMParser().parseFromString(safeHtml, "text/html");
+      const $doc = $(doc);
+      const list = [];
+
+      $doc.find(".economy-item").each((i, el) => {
+        const $el = $(el);
+        const item = { appid: appId };
+
+        // 1. Name & ID
+        const $header = $el.find("h4.economy-item-name");
+
+        // Handle name (sometimes inside <i>)
+        const $i = $header.find("i");
+        item.name = (
+          $i.length > 0 ? $i : $header.clone().children().remove().end()
+        )
+          .text()
+          .trim();
+
+        // Handle ID
+        const itemDefId = $header.find("a").text().trim().slice(1); // remove #
+        item.itemdefid = itemDefId;
+
+        // 2. Description
+        const $desc = $el.find("div.economy-item-description");
+        if ($desc.length > 0) {
+          item.description = $desc.text().trim();
+        }
+
+        // 3. Properties Table & Web Assets (Tags)
+        let currentCategory = null;
+
+        $el.find(".table tr").each((j, tr) => {
+          const $tr = $(tr);
+
+          // Check for category separator (e.g. Tags)
+          if ($tr.hasClass("web-assets-hr")) {
+            currentCategory = $tr
+              .find("td:first-child")
+              .text()
+              .slice(0, -1)
+              .trim(); // remove colon
+            // Convert to snake_case for consistency
+            currentCategory = currentCategory
+              .toLowerCase()
+              .replace(/\s+/g, "_");
+          }
+
+          if (currentCategory !== null) {
+            // Collect tags in this category
+            const tags = [];
+            $tr.find("td").each((k, td) => {
+              tags.push($(td).text().trim());
+            });
+            item[currentCategory] = tags.join(";");
+          } else {
+            // Standard Key-Value pair
+            let key = $tr
+              .find("td:first-child")
+              .text()
+              .trim()
+              .replace(/:$/, "");
+            let val = $tr.find("td:last-child").text().trim();
+
+            // Normalization
+            key = key.toLowerCase().replace(/\s+/g, "_"); // Name Color -> name_color
+
+            // Boolean string normalization
+            if (val.toLowerCase() === "yes") val = "true";
+            if (val.toLowerCase() === "no") val = "false";
+
+            item[key] = val;
+          }
+
+          if ($tr.hasClass("web-assets-bottom")) {
+            currentCategory = null;
+          }
+        });
+
+        // 4. Extract Images & Colors manually if not in table
+        const $img = $el.find("img.economy-item-image");
+        if ($img.length && !item.icon_url) {
+          item.icon_url = $img.attr("src");
+          item.icon_url_large = item.icon_url;
+        }
+
+        // CSS Colors
+        const style = $header.attr("style") || "";
+        const colorMatch = style.match(/color:\s*#([a-fA-F0-9]{6})/);
+        if (colorMatch && !item.name_color) {
+          item.name_color = colorMatch[1];
+        }
+
+        list.push(item);
+      });
+      return list;
+    },
   };
 
   // =================================================================
@@ -452,6 +449,21 @@
         type === "main" ? ach.iconBase : ach.iconGrayBase,
     },
 
+    // --- ITEMS ---
+    goldberg_items: {
+      type: "items",
+      name: "Goldberg Items (.json)",
+      filename: "items.json",
+      render: (data) => {
+        if (!data || !data.length) return "{}";
+        const map = {};
+        data.forEach((item) => {
+          map[item.itemdefid] = item;
+        });
+        return JSON.stringify(map, null, 4);
+      },
+    },
+
     // --- DLC ---
     tenoke_dlc: {
       type: "dlc",
@@ -487,6 +499,106 @@
         return out;
       },
     },
+    cream_dlc: {
+      type: "dlc",
+      name: "CreamAPI (.ini)",
+      filename: "cream_api.ini",
+      render: (data, context) => {
+        const appId = context && context.appId ? context.appId : "0";
+        let out = `[steam]
+; Application ID (http://store.steampowered.com/app/%appid%/)
+appid=${appId}
+; Current game language.
+; Uncomment this option to turn it on.
+; Default is "english".
+;language=german
+; Enable/disable automatic DLC unlock. Default option is set to "false".
+; Keep in mind that this option  WON'T work properly if the "[dlc]" section is NOT empty
+unlockall=false
+; Original Valve's steam_api.dll.
+; Default is "steam_api_o.dll".
+orgapi=steam_api_o.dll
+; Original Valve's steam_api64.dll.
+; Default is "steam_api64_o.dll".
+orgapi64=steam_api64_o.dll
+; Enable/disable extra protection bypasser.
+; Default is "false".
+extraprotection=false
+; Add the specific files to hide from detection.
+; Use comma (,) to separate the files. "cream_api.ini" is hidden by default.
+;filestohide=steam_appid.txt,steam_emu.ini
+; The game will think that you're offline (supported by some games).
+; Default is "false".
+forceoffline=false
+; Some games are checking for the low violence presence.
+; Default is "false".
+;lowviolence=true
+; Purchase timestamp for the DLC (http://www.onlineconversion.com/unix_time.htm).
+; Default is "0" (1970/01/01).
+;purchasetimestamp=0
+
+[steam_misc]
+; Disables the internal SteamUser interface handler.
+; Does have an effect on the games that are using the license check for the DLC/application.
+; Default is "false".
+disableuserinterface=false
+
+[dlc]
+; DLC handling.
+; Format: <dlc_id> = <dlc_description>
+; e.g. : 247295 = Saints Row IV - GAT V Pack
+; If the DLC is not specified in this section
+; then it won't be unlocked
+`;
+        if (data.length > 0) {
+          data.forEach((d) => {
+            out += `${d.id}=${d.name}\n`;
+          });
+        }
+        return out;
+      },
+    },
+    smoke_dlc: {
+      type: "dlc",
+      name: "SmokeAPI (.json)",
+      filename: "SmokeAPI.config.json",
+      render: (data, context) => {
+        const appId = context && context.appId ? context.appId : "0";
+        // Map inventory items to simple integer IDs for SmokeAPI array
+        const inv =
+          context && context.inventory
+            ? context.inventory
+                .map((i) => parseInt(i.itemdefid, 10))
+                .filter((n) => !isNaN(n))
+            : [];
+
+        const dlcList = {};
+        data.forEach((d) => {
+          dlcList[d.id] = d.name;
+        });
+
+        const config = {
+          $schema:
+            "https://raw.githubusercontent.com/acidicoala/SmokeAPI/refs/tags/v4.0.0/res/SmokeAPI.schema.json",
+          $version: 4,
+          logging: false,
+          log_steam_http: false,
+          default_app_status: "unlocked",
+          override_app_status: {
+            [appId]: "unlocked",
+          },
+          override_dlc_status: {},
+          auto_inject_inventory: true,
+          extra_inventory_items: inv,
+          extra_dlcs: {
+            [appId]: {
+              dlcs: dlcList,
+            },
+          },
+        };
+        return JSON.stringify(config, null, 2);
+      },
+    },
 
     // --- FULL PACKAGES ---
     tenoke_ini: {
@@ -504,12 +616,19 @@
       type: "ini",
       name: "Goldberg Full Package",
       supportsIcons: true,
-      render: (appInfo, dlcs, achs) => {
+      render: (appInfo, dlcs, achs, items) => {
         const ac = achs.length;
         const dc = dlcs.length;
-        return `[Goldberg Configuration Package]\n\nClicking 'Download' will generate a ZIP containing:\n\n1. steam_settings/steam_appid.txt\n2. steam_settings/achievements.json (${ac} items)\n3. steam_settings/configs.app.ini (${dc} items)\n4. steam_settings/img/ (${
+        const ic = items ? items.length : 0;
+        let out = `[Goldberg Configuration Package]\n\nClicking 'Download' will generate a ZIP containing:\n\n1. steam_settings/steam_appid.txt\n2. steam_settings/achievements.json (${ac} items)\n3. steam_settings/configs.app.ini (${dc} DLCs)\n`;
+        let counter = 4;
+        if (ic > 0) {
+          out += `${counter++}. steam_settings/items.json (${ic} items)\n`;
+        }
+        out += `${counter}. steam_settings/img/ (${
           ac * 2
         } images)\n\nNote: This saves time by organizing the folder structure automatically.`;
+        return out;
       },
     },
     rune_ini: {
@@ -711,7 +830,7 @@
       this.finalizeZip(zip, "tenoke_release.zip", tabPrefix);
     },
 
-    async downloadGoldberg(appInfo, dlcs, achs, withIcons, btnSelector) {
+    async downloadGoldberg(appInfo, dlcs, achs, items, withIcons, btnSelector) {
       const tabPrefix = "ini";
       const icons = await this.fetchImagesWithProgress(achs, tabPrefix);
       if (!icons) return;
@@ -730,6 +849,10 @@
       if (dlcs.length) {
         const ini = Generators.goldberg_dlc.render(dlcs);
         zip["steam_settings/configs.app.ini"] = new TextEncoder().encode(ini);
+      }
+      if (items && items.length > 0) {
+        const itemJson = Generators.goldberg_items.render(items);
+        zip["steam_settings/items.json"] = new TextEncoder().encode(itemJson);
       }
 
       for (const [name, buf] of Object.entries(icons)) {
@@ -787,6 +910,7 @@
     gameName: "Unknown Game",
     achievements: [],
     dlcs: [],
+    inventory: [], // NEW
     loader: null,
     uiBuilt: false,
     activeTab: "ach",
@@ -804,12 +928,15 @@
     },
 
     async startPreload() {
-      const [achRes, dlcRes] = await Promise.allSettled([
+      const [achRes, dlcRes, itemRes] = await Promise.allSettled([
         Network.fetchText(
           `https://steamdb.info/api/RenderAppSection/?section=stats&appid=${this.appId}`
         ),
         Network.fetchText(
           `https://steamdb.info/api/RenderLinkedApps/?appid=${this.appId}`
+        ),
+        Network.fetchText(
+          `https://steamdb.info/api/RenderAppSection/?section=items&appid=${this.appId}`
         ),
       ]);
 
@@ -819,8 +946,15 @@
       if (dlcRes.status === "fulfilled") {
         this.dlcs = Parser.dlcs(dlcRes.value);
       }
+      if (itemRes.status === "fulfilled") {
+        this.inventory = Parser.items(itemRes.value, this.appId);
+      }
 
-      return { achCount: this.achievements.length, dlcCount: this.dlcs.length };
+      return {
+        achCount: this.achievements.length,
+        dlcCount: this.dlcs.length,
+        invCount: this.inventory.length,
+      };
     },
 
     injectButton() {
@@ -840,7 +974,11 @@
     async syncUI() {
       const $status = $(`#${CONFIG.PREFIX}-status`);
 
-      if (this.achievements.length || this.dlcs.length) {
+      if (
+        this.achievements.length ||
+        this.dlcs.length ||
+        this.inventory.length
+      ) {
         this.refreshAll();
         return;
       }
@@ -861,6 +999,7 @@
     refreshAll() {
       this.renderTab("ach");
       this.renderTab("dlc");
+      this.renderTab("items");
       this.renderTab("ini");
       this.updateFooter();
     },
@@ -872,6 +1011,8 @@
         $stats.text(`${c} Achievements (${c * 2} Images)`);
       } else if (this.activeTab === "dlc") {
         $stats.text(`${this.dlcs.length} DLCs Found`);
+      } else if (this.activeTab === "items") {
+        $stats.text(`${this.inventory.length} Items Found`);
       } else if (this.activeTab === "ini") {
         $stats.text(`Ready to generate full config`);
       }
@@ -889,12 +1030,21 @@
           ? generator.render(this.achievements)
           : "No achievements found.";
       } else if (type === "dlc") {
-        out = generator.render(this.dlcs);
+        out = generator.render(this.dlcs, {
+          appId: this.appId,
+          gameName: this.gameName,
+          inventory: this.inventory,
+        });
+      } else if (type === "items") {
+        out = this.inventory.length
+          ? generator.render(this.inventory)
+          : "No inventory items found.";
       } else if (type === "ini") {
         out = generator.render(
           { appId: this.appId, gameName: this.gameName },
           this.dlcs,
-          this.achievements
+          this.achievements,
+          this.inventory
         );
       }
 
@@ -927,6 +1077,7 @@
                         <div class="${p}-nav">
                             <div class="${p}-nav-item active" data-tab="ach">Achievements</div>
                             <div class="${p}-nav-item" data-tab="dlc">DLC</div>
+                            <div class="${p}-nav-item" data-tab="items">Items</div>
                             <div class="${p}-nav-item" data-tab="ini">Full Config</div>
                         </div>
                         <div class="${p}-body">
@@ -967,6 +1118,18 @@
                                     <button id="${p}-btn-dlc-save" class="${p}-btn ${p}-btn-primary">Save</button>
                                 </div>
                                 <textarea id="${p}-dlc-output" class="${p}-textarea" readonly>Loading...</textarea>
+                            </div>
+
+                            <!-- Items (NEW) -->
+                            <div id="${p}-tab-items" class="${p}-tab">
+                                <div class="${p}-controls">
+                                    <select id="${p}-items-preset" class="${p}-select">
+                                        ${getOptions("items")}
+                                    </select>
+                                    <button id="${p}-btn-items-copy" class="${p}-btn ${p}-btn-secondary">Copy</button>
+                                    <button id="${p}-btn-items-save" class="${p}-btn ${p}-btn-primary">Save</button>
+                                </div>
+                                <textarea id="${p}-items-output" class="${p}-textarea" readonly>Loading...</textarea>
                             </div>
 
                             <!-- Config -->
@@ -1027,8 +1190,9 @@
         if (e.target === e.currentTarget) closeModal();
       });
       $(document).on("keydown", (e) => {
-        if (e.key === "Escape" && $(`#${p}-overlay`).hasClass("active"))
+        if (e.key === "Escape" && $(`#${p}-overlay`).hasClass("active")) {
           closeModal();
+        }
       });
 
       // Tabs
@@ -1103,7 +1267,17 @@
         );
       });
 
-      // Download Actions
+      $(`#${p}-btn-items-save`).on("click", () => {
+        const key = $(`#${p}-items-preset`).val();
+        const fname = Generators[key].filename || "items.json";
+        saveAs(
+          new Blob([$(`#${p}-items-output`).val()], {
+            type: "text/plain;charset=utf-8",
+          }),
+          fname
+        );
+      });
+
       $(`#${p}-btn-img`).on("click", () => {
         const key = $(`#${p}-ach-preset`).val();
         Packager.downloadIconsOnly(ctx.achievements, key);
@@ -1119,6 +1293,7 @@
             { appId: ctx.appId },
             ctx.dlcs,
             ctx.achievements,
+            ctx.inventory,
             withIcons,
             btnId
           );
