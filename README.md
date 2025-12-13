@@ -4,10 +4,10 @@ A high-performance userscript for [SteamDB.info](https://steamdb.info/) that fet
 
 ## 📥 Installation
 
-1.  Install a userscript manager like **Tampermonkey** (Chrome/Edge/Firefox) or **Violentmonkey**.
-2.  Click the button below to install the script:
+1. Install a userscript manager like **Tampermonkey** (Chrome/Edge/Firefox) or **Violentmonkey**.
+2. Click the button below to install the script:
 
-[**👉 Install Script**](<Primary/prototype2(Go).user.js?raw=true>)
+[**👉 Install Script**](Primary/prototype2-Go.user.js?raw=true)
 
 _(Note: If the link above doesn't work, ensure you are viewing the "Raw" file in the repository)._
 
@@ -50,9 +50,9 @@ We welcome Pull Requests! The script is designed to be modular. You can easily a
 
 ### How to add a new config format
 
-1.  Open the script source.
-2.  Locate the `const Generators` object.
-3.  Add your new key (e.g., `my_custom_emu`).
+1. Open the script source.
+2. Locate the `const Generators` object.
+3. Add your new key (e.g., `my_custom_emu`).
 
 **Example Template:**
 
